@@ -6,14 +6,16 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // Some Vercel runtimes don’t parse the body automatically
+    // Parse body safely
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    console.log("Incoming body:", body); // 🔎 Will show in Vercel logs
 
     const { task, payload } = body || {};
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return res.status(500).json({ error: "Missing GEMINI_API_KEY in env" });
+      console.error("❌ Missing GEMINI_API_KEY in environment");
+      return res.status(500).json({ error: "Server missing GEMINI_API_KEY" });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -21,7 +23,7 @@ export default async function handler(req: any, res: any) {
     if (task === "summary") {
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent(
-        `Summarize this text for a high school student:\n\n${payload?.text || ""}`
+        `Summarize this text for a high school student:\n\n${payload?.text}`
       );
       return res.status(200).json({ result: result.response.text() });
     }
@@ -29,7 +31,7 @@ export default async function handler(req: any, res: any) {
     if (task === "hint") {
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent(
-        `Give a one-sentence hint (not answer) for this question:\n\n${payload?.question || ""}`
+        `Give a one-sentence hint (not solution) for this question:\n\n${payload?.question}`
       );
       return res.status(200).json({ result: result.response.text() });
     }
