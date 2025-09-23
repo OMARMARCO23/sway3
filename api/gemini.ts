@@ -1,41 +1,37 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const API_KEY = process.env.GEMINI_API_KEY as string;
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const { task, payload } = req.body;
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'Missing API Key' });
 
-    if (!API_KEY) {
-      return res.status(500).json({ error: "Missing Gemini API key" });
-    }
+    const genAI = new GoogleGenerativeAI(apiKey);
 
-    const genAI = new GoogleGenerativeAI(API_KEY);
-
-    if (task === "summary") {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    if (task === 'summary') {
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
       const result = await model.generateContent(
-        `Summarize this for a high school learner:\n\n${payload.text}`
+        `Summarize for a student:\n\n${payload.text}`
       );
       return res.status(200).json({ result: result.response.text() });
     }
 
-    if (task === "hint") {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    if (task === 'hint') {
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
       const result = await model.generateContent(
-        `Give a very short one-sentence hint (not the answer) for this homework question:\n\n${payload.question}`
+        `Give a one-sentence hint without solving the problem:\n\n${payload.question}`
       );
       return res.status(200).json({ result: result.response.text() });
     }
 
-    return res.status(400).json({ error: "Invalid task type" });
-  } catch (err: any) {
-    console.error(err);
-    res.status(500).json({ error: "Server error during Gemini call" });
+    return res.status(400).json({ error: 'Invalid task type' });
+  } catch (error: any) {
+    console.error(error);
+    return res.status(500).json({ error: 'Server error', details: error.message });
   }
 }
