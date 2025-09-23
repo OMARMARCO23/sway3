@@ -18,7 +18,11 @@ interface HWItem {
 
 export function ScanHomework() {
   const [questions, setQuestions] = useState<HWItem[]>(
-    sampleQuestions.map((q) => ({ question: q, loading: false, show: false }))
+    sampleQuestions.map((q) => ({
+      question: q,
+      loading: false,
+      show: false,
+    }))
   );
 
   const handleToggleHint = async (index: number) => {
@@ -29,11 +33,13 @@ export function ScanHomework() {
     );
 
     const item = questions[index];
+    // if hint or error already exists, do nothing (just toggling)
     if (item.hint || item.error) return;
 
+    // fetch new hint
     setQuestions((prev) =>
-      prev.map((item, i) =>
-        i === index ? { ...item, loading: true, error: undefined } : item
+      prev.map((it, i) =>
+        i === index ? { ...it, loading: true, error: undefined } : it
       )
     );
 
@@ -41,23 +47,34 @@ export function ScanHomework() {
       const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "hint", payload: { question: item.question } }),
+        body: JSON.stringify({
+          task: "hint",
+          payload: { question: item.question },
+        }),
       });
       const data = await res.json();
+
       if (data.result) {
         setQuestions((prev) =>
           prev.map((it, i) =>
-            i === index ? { ...it, hint: data.result, loading: false, show: true } : it
+            i === index
+              ? { ...it, hint: data.result, loading: false, show: true }
+              : it
           )
         );
       } else {
-        throw new Error(data.error);
+        throw new Error(data.error || "No hint returned");
       }
     } catch (err) {
       setQuestions((prev) =>
         prev.map((it, i) =>
           i === index
-            ? { ...it, error: "⚠️ Failed to fetch hint.", loading: false, show: true }
+            ? {
+                ...it,
+                error: "⚠️ Failed to fetch hint.",
+                loading: false,
+                show: true,
+              }
             : it
         )
       );
@@ -69,7 +86,10 @@ export function ScanHomework() {
       <h1 className="text-2xl font-bold mb-6">Homework Help</h1>
       <div className="space-y-4">
         {questions.map((item, index) => (
-          <div key={index} className="bg-white dark:bg-gray-800 p-4 shadow rounded">
+          <div
+            key={index}
+            className="bg-white dark:bg-gray-800 p-4 shadow rounded"
+          >
             <div className="flex items-center justify-between">
               <p className="font-medium">{item.question}</p>
               <button
@@ -93,10 +113,16 @@ export function ScanHomework() {
 
             {item.show && (
               <div className="mt-3 pl-4 border-l-4 border-yellow-400">
-                {item.loading && <p className="text-sm text-gray-500">Loading...</p>}
-                {item.error && <p className="text-sm text-red-500">{item.error}</p>}
+                {item.loading && (
+                  <p className="text-sm text-gray-500">Loading...</p>
+                )}
+                {item.error && (
+                  <p className="text-sm text-red-500">{item.error}</p>
+                )}
                 {item.hint && !item.loading && !item.error && (
-                  <p className="text-sm text-gray-700 dark:text-gray-200">{item.hint}</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">
+                    {item.hint}
+                  </p>
                 )}
               </div>
             )}

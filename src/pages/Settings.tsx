@@ -31,7 +31,10 @@ export function Settings() {
           <h2 className="font-semibold mb-2">Subjects</h2>
           <div className="flex gap-2 flex-wrap">
             {["Math", "Physics", "Chemistry", "History"].map((subject) => (
-              <span key={subject} className="px-3 py-1 bg-blue-100 dark:bg-blue-600 text-blue-800 dark:text-white rounded-full text-sm">
+              <span
+                key={subject}
+                className="px-3 py-1 bg-blue-100 dark:bg-blue-600 text-blue-800 dark:text-white rounded-full text-sm"
+              >
                 {subject}
               </span>
             ))}
@@ -41,9 +44,19 @@ export function Settings() {
         <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
           <h2 className="font-semibold mb-2">Account</h2>
           <form className="space-y-2">
-            <input type="email" placeholder="Email" className="w-full px-2 py-1 border rounded dark:bg-gray-700"/>
-            <input type="password" placeholder="Password" className="w-full px-2 py-1 border rounded dark:bg-gray-700"/>
-            <button type="submit" className="w-full px-3 py-2 bg-blue-500 text-white rounded">Login</button>
+            <input
+              type="email"
+              placeholder="Email"
+              className="w-full px-2 py-1 border rounded dark:bg-gray-700"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              className="w-full px-2 py-1 border rounded dark:bg-gray-700"
+            />
+            <button type="submit" className="w-full px-3 py-2 bg-blue-500 text-white rounded">
+              Login
+            </button>
           </form>
         </div>
       </div>

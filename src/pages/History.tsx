@@ -16,7 +16,9 @@ export function History() {
             <Icon className="w-6 h-6 text-blue-500 mr-3" />
             <div>
               <p className="font-semibold">{title}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{type} • {time}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {type} • {time}
+              </p>
             </div>
           </div>
         ))}

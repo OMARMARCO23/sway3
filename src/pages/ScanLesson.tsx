@@ -13,7 +13,7 @@ export function ScanLesson() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
 
-  // function to call backend proxy for summary
+  // ✅ This calls your backend proxy to summarize lesson text
   const handleAnalyze = async () => {
     setLoadingSummary(true);
     try {
@@ -35,7 +35,7 @@ export function ScanLesson() {
     setLoadingSummary(false);
   };
 
-  // simple simulated chat handler
+  // ✅ Basic demo chat – replace with real streaming later
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -45,7 +45,7 @@ export function ScanLesson() {
     setInput("");
     setStreaming(true);
 
-    // Temporary fake reply so UI works (replace with real stream API later)
+    // Simulated AI response
     setTimeout(() => {
       setMessages((prev) => [
         ...prev,
@@ -55,7 +55,7 @@ export function ScanLesson() {
     }, 1000);
   };
 
-  // Initial state: textarea input
+  // Initial state: just textarea input
   if (!summary) {
     return (
       <div>
@@ -77,7 +77,7 @@ export function ScanLesson() {
     );
   }
 
-  // Summary + chat UI
+  // After analysis: show summary + chat
   return (
     <div className="flex flex-col h-[70vh]">
       <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
