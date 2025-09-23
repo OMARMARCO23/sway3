@@ -1,7 +1,9 @@
 import { useTheme } from "../contexts/ThemeContext";
+import { useLanguage } from "../contexts/LanguageContext";
 
 export function Settings() {
   const { theme, toggleTheme } = useTheme();
+  const { language, setLanguage } = useLanguage();
 
   return (
     <div>
@@ -9,6 +11,7 @@ export function Settings() {
       <div className="space-y-4">
         <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
           <h2 className="font-semibold mb-2">General</h2>
+
           <div className="flex items-center justify-between mb-2">
             <span>Dark Mode</span>
             <button
@@ -18,46 +21,19 @@ export function Settings() {
               {theme === "dark" ? "🌙" : "☀️"}
             </button>
           </div>
+
           <div className="flex items-center justify-between">
             <span>Language</span>
-            <select className="bg-gray-200 dark:bg-gray-600 rounded px-2 py-1" disabled>
-              <option>English</option>
-              <option>French</option>
+            <select
+              className="bg-gray-200 dark:bg-gray-600 rounded px-2 py-1"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as any)}
+            >
+              <option value="en">English</option>
+              <option value="fr">Français</option>
+              <option value="ar">العربية</option>
             </select>
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
-          <h2 className="font-semibold mb-2">Subjects</h2>
-          <div className="flex gap-2 flex-wrap">
-            {["Math", "Physics", "Chemistry", "History"].map((subject) => (
-              <span
-                key={subject}
-                className="px-3 py-1 bg-blue-100 dark:bg-blue-600 text-blue-800 dark:text-white rounded-full text-sm"
-              >
-                {subject}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-4 rounded shadow">
-          <h2 className="font-semibold mb-2">Account</h2>
-          <form className="space-y-2">
-            <input
-              type="email"
-              placeholder="Email"
-              className="w-full px-2 py-1 border rounded dark:bg-gray-700"
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full px-2 py-1 border rounded dark:bg-gray-700"
-            />
-            <button type="submit" className="w-full px-3 py-2 bg-blue-500 text-white rounded">
-              Login
-            </button>
-          </form>
         </div>
       </div>
     </div>
