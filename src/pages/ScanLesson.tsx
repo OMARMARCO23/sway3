@@ -18,11 +18,10 @@ export function ScanLesson() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setLoadingOCR(true);
     try {
       const Tesseract = await import("tesseract.js"); // 👈 Lazy import
-      const result = await Tesseract.recognize(file, "eng");
+      const result = await (window as any).Tesseract.recognize(file, "eng");
       setLessonText(result.data.text);
     } catch (err) {
       console.error("OCR failed:", err);
