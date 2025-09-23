@@ -6,47 +6,45 @@ import { TypingIndicator } from "../components/TypingIndicator";
 export function ScanLesson() {
   const [lessonText, setLessonText] = useState("");
   const [summary, setSummary] = useState("");
-  const [messages, setMessages] = useState<
-    { role: "user" | "model"; content: string }[]
-  >([]);
+  const [messages, setMessages] = useState<{ role: "user" | "model"; content: string }[]>([]);
   const [loadingOCR, setLoadingOCR] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const Tesseract = await import("tesseract.js");
-  const result = await Tesseract.recognize(file, "eng");
-  /** 📸 Step 1. OCR Extract (lazy import Tesseract) */
+
+  /** 📸 Step 1. OCR Extract using Tesseract from CDN */
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setLoadingOCR(true);
     try {
-      const Tesseract = await import("tesseract.js"); // 👈 Lazy import
+      // @ts-ignore - Tesseract is loaded globally from CDN
       const result = await (window as any).Tesseract.recognize(file, "eng");
       setLessonText(result.data.text);
+      console.log("OCR Result:", result.data.text);
     } catch (err) {
       console.error("OCR failed:", err);
-      alert("OCR failed. Try again.");
+      alert("OCR failed. Please try again.");
     }
     setLoadingOCR(false);
   };
 
-  /** 📘 Step 2. Send OCR text -> AI for explanation */
+  /** 📘 Step 2. Analyze lesson with Gemini API */
   const handleAnalyze = async () => {
     setLoadingSummary(true);
     try {
       const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task: "summary",
-          payload: { text: lessonText, language: "en" },
-        }),
+        body: JSON.stringify({ task: "summary", payload: { text: lessonText, language: "en" } }),
       });
       const data = await res.json();
       if (data.result) {
         setSummary(data.result);
         setMessages([{ role: "model", content: data.result }]);
+        // Save to localStorage for Homework use
+        localStorage.setItem("lastLessonText", lessonText);
       } else {
         throw new Error(data.error || "API failed");
       }
@@ -57,7 +55,7 @@ export function ScanLesson() {
     setLoadingSummary(false);
   };
 
-  /** 💬 Step 3. Chat after summary */
+  /** 💬 Step 3. Chat with AI */
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -91,7 +89,7 @@ export function ScanLesson() {
     setStreaming(false);
   };
 
-  /** ✨ Initial State (Upload OCR or paste text) */
+  /** ✨ Initial state (upload OCR or paste text) */
   if (!summary) {
     return (
       <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
@@ -100,17 +98,10 @@ export function ScanLesson() {
         <label className="flex items-center justify-center w-full p-6 border-2 border-dashed rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
           <Upload className="w-6 h-6 mr-2 text-blue-500" />
           <span className="text-sm">Click to upload an image (English only for now)</span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-          />
+          <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
         </label>
 
-        {loadingOCR && (
-          <p className="mt-2 text-sm text-blue-500">Extracting text from image…</p>
-        )}
+        {loadingOCR && <p className="mt-2 text-sm text-blue-500">Extracting text from image…</p>}
 
         <textarea
           className="w-full h-40 p-3 mt-4 border rounded-lg dark:bg-gray-900"
