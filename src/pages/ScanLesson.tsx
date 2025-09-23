@@ -13,7 +13,8 @@ export function ScanLesson() {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-
+  const Tesseract = await import("tesseract.js");
+  const result = await Tesseract.recognize(file, "eng");
   /** 📸 Step 1. OCR Extract (lazy import Tesseract) */
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
