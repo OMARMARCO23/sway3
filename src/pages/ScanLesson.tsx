@@ -12,7 +12,17 @@ export function ScanLesson() {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+// Inside ScanLesson.tsx
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
+    const { createWorker } = await import("tesseract.js"); // 👈 lazy load
+    // or: const Tesseract = await import("tesseract.js");
+
+    const { data: { text } } = await (await import("tesseract.js")).default.recognize(file, "eng");
+    setLessonText(text);
+  };
   /** 📸 Step 1. OCR Extract from Image */
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
