@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return res.status(500).json({ error: 'Missing GEMINI_API_KEY in env' });
+      return res.status(500).json({ error: 'Missing GEMINI_API_KEY' });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (task === 'summary') {
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const result = await model.generateContent(
-        `Summarize this for a high school student:\n\n${payload.text}`
+        `Summarize this text for a high school student:\n\n${payload.text}`
       );
       return res.status(200).json({ result: result.response.text() });
     }
@@ -27,14 +27,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (task === 'hint') {
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const result = await model.generateContent(
-        `Provide a very short one-sentence hint for this question, without giving the answer:\n\n${payload.question}`
+        `Give a one-sentence hint for this homework question (without giving away the answer):\n\n${payload.question}`
       );
       return res.status(200).json({ result: result.response.text() });
     }
 
-    return res.status(400).json({ error: 'Invalid task type' });
+    return res.status(400).json({ error: 'Invalid task' });
   } catch (err: any) {
-    console.error('Gemini API error:', err);
-    return res.status(500).json({ error: 'Internal server error', details: err.message });
+    console.error('Gemini API Error:', err);
+    return res.status(500).json({ error: 'Internal Server Error', details: err.message });
   }
 }
