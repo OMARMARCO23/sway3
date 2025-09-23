@@ -1,14 +1,21 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+// Vercel Rollup build fix for Tesseract.js
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: {
-    include: ["tesseract.js"]
+  server: {
+    proxy: {
+      // Optional: Proxy to deployed backend during local dev
+      "/api": {
+        target: "https://sway3.vercel.app", // replace with your deployed URL
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     rollupOptions: {
-      external: [], // you can add "tesseract.js" here if bundling still breaks
-    }
-  }
+      external: ["tesseract.js"], // 👈 prevent bundling Tesseract
+    },
+  },
 });
