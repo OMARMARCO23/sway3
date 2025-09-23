@@ -27,7 +27,7 @@ export function Settings() {
             <select
               className="bg-gray-200 dark:bg-gray-600 rounded px-2 py-1"
               value={language}
-              onChange={(e) => setLanguage(e.target.value as any)}
+              onChange={(e) => setLanguage(e.target.value as "en" | "fr" | "ar")}
             >
               <option value="en">English</option>
               <option value="fr">Français</option>
