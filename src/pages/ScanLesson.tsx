@@ -2,7 +2,8 @@ import { useState } from "react";
 import { BrainCircuit, Upload } from "lucide-react";
 import { ChatMessage } from "../components/ChatMessage";
 import { TypingIndicator } from "../components/TypingIndicator";
-import { useLanguage } from "../contexts/LanguageContext"; // ✅ from your LanguageContext
+import { useLanguage } from "../contexts/LanguageContext";
+import { useToast } from "../components/Toast"; // ✅ new hook for toasts
 
 export function ScanLesson() {
   const [lessonText, setLessonText] = useState("");
@@ -12,57 +13,64 @@ export function ScanLesson() {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const { language } = useLanguage();
 
-  /** OCR With Tesseract from CDN */
+  const { language } = useLanguage();
+  const { showToast, ToastContainer } = useToast(); // ✅ useToast hook
+
+  /** 📸 OCR From Image (using global Tesseract via CDN injection in index.html) */
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setLoadingOCR(true);
     try {
-      // @ts-ignore
-      const result = await (window as any).Tesseract.recognize(file, language === "fr" ? "fra" : language === "ar" ? "ara" : "eng");
+      // @ts-ignore - Tesseract is loaded globally by CDN
+      const result = await (window as any).Tesseract.recognize(
+        file,
+        language === "fr" ? "fra" : language === "ar" ? "ara" : "eng"
+      );
       setLessonText(result.data.text);
+      showToast("✅ OCR text extracted!", "success");
     } catch (err) {
       console.error("OCR failed:", err);
-      alert("OCR failed. Try again.");
+      showToast("❌ OCR failed, please try again", "error");
     }
     setLoadingOCR(false);
   };
 
-  /** Summarize lesson text through Gemini */
+  /** 📘 AI Summary */
   const handleAnalyze = async () => {
     setLoadingSummary(true);
     try {
       const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "summary", payload: { text: lessonText, language } }),
+        body: JSON.stringify({ task: "summary", payload: { text: lessonText, language } })
       });
 
       let data: any;
       try {
         data = await res.json();
       } catch {
-        throw new Error("Server did not return JSON.");
+        throw new Error("Server returned non‑JSON response.");
       }
 
       if (data.result) {
         setSummary(data.result);
         setMessages([{ role: "model", content: data.result }]);
-        localStorage.setItem("lastLessonText", lessonText); // ✅ for Homework
+        localStorage.setItem("lastLessonText", lessonText);
         localStorage.setItem("lastLessonLang", language);
+        showToast("✅ Lesson analyzed successfully!", "success");
       } else {
-        throw new Error(data.error || "API failed");
+        throw new Error(data.error || "Summary failed");
       }
     } catch (err) {
       console.error(err);
-      alert("Something went wrong while summarizing.");
+      showToast("❌ Error analyzing lesson", "error");
     }
     setLoadingSummary(false);
   };
 
-  /** Chat With AI */
+  /** 💬 Chat with AI */
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -76,24 +84,32 @@ export function ScanLesson() {
       const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: "chat", payload: { question: input, context: lessonText, language } }),
+        body: JSON.stringify({
+          task: "chat",
+          payload: { question: input, context: lessonText, language }
+        })
       });
 
       let data: any;
       try {
         data = await res.json();
       } catch {
-        throw new Error("Server did not return JSON.");
+        throw new Error("Server returned non‑JSON response.");
       }
 
       setMessages((prev) => [
         ...prev,
-        { role: "model", content: data.result || "⚠️ AI did not respond." },
+        { role: "model", content: data.result || "⚠️ AI did not respond" }
       ]);
     } catch (err) {
       console.error("Chat error:", err);
-      setMessages((prev) => [...prev, { role: "model", content: "⚠️ Chat failed." }]);
+      showToast("❌ Chat failed", "error");
+      setMessages((prev) => [
+        ...prev,
+        { role: "model", content: "⚠️ Chat failed." }
+      ]);
     }
+
     setStreaming(false);
   };
 
@@ -102,18 +118,22 @@ export function ScanLesson() {
     return (
       <div className="max-w-3xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
         <h1 className="text-xl font-bold mb-4">📷 Scan or Paste Your Lesson</h1>
+
         <label className="flex items-center justify-center w-full p-6 border-2 border-dashed rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
           <Upload className="w-6 h-6 mr-2 text-blue-500" />
           <span className="text-sm">Upload an image (OCR in {language.toUpperCase()})</span>
           <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
         </label>
+
         {loadingOCR && <p className="mt-2 text-sm text-blue-500">Extracting text…</p>}
+
         <textarea
           className="w-full h-40 p-3 mt-4 border rounded-lg dark:bg-gray-900 dark:text-white"
           placeholder="Or paste your lesson text here…"
           value={lessonText}
           onChange={(e) => setLessonText(e.target.value)}
         />
+
         <button
           onClick={handleAnalyze}
           disabled={!lessonText || loadingSummary}
@@ -122,6 +142,8 @@ export function ScanLesson() {
           {loadingSummary ? "Analyzing…" : "Analyze Lesson"}
           <BrainCircuit className="ml-2 w-5 h-5 inline" />
         </button>
+
+        <ToastContainer /> {/* ✅ mount toasts globally here */}
       </div>
     );
   }
@@ -156,6 +178,8 @@ export function ScanLesson() {
           </button>
         </form>
       </div>
+
+      <ToastContainer /> {/* ✅ also here for chat errors/success */}
     </div>
   );
 }
