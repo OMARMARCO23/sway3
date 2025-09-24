@@ -38,7 +38,7 @@ export function Dashboard() {
       <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">
         👋 Welcome back!
       </h1>
-      <p className="text-sm text-gray-800 dark:text-gray-200">{desc}</p>
+      
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
         {features.map(({ to, Icon, title, desc, color }) => (
           <Link
