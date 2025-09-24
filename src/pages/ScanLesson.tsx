@@ -6,6 +6,7 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { useToast } from "../components/Toast"; // ✅ new hook for toasts
 
 export function ScanLesson() {
+  const [showSaveButton, setShowSaveButton] = useState(false);
   const [lessonText, setLessonText] = useState("");
   const [summary, setSummary] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "model"; content: string }[]>([]);
