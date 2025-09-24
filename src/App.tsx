@@ -8,8 +8,20 @@ import { BottomNav } from "./components/BottomNav";
 
 function Header() {
   return (
-    <header className="fixed top-0 left-0 right-0 bg-gradient-to-r from-blue-500 to-purple-600 shadow-md z-10">
-      <div className="p-4 text-white font-bold text-xl">SWAY3</div>
+    <header className="bg-gradient-to-r from-indigo-600 to-purple-600 shadow-md fixed top-0 left-0 right-0 z-20">
+      <div className="max-w-6xl mx-auto flex items-center justify-between p-4">
+        <div className="flex items-center font-bold text-xl text-white">
+          <img src="/logo.png" alt="SWAY3" className="w-8 h-8 mr-2" />
+          SWAY3
+        </div>
+        <nav className="hidden md:flex space-x-6 text-white">
+          <a href="#/dashboard" className="hover:text-emerald-300">Dashboard</a>
+          <a href="#/scan-lesson" className="hover:text-emerald-300">Scan Lesson</a>
+          <a href="#/scan-homework" className="hover:text-emerald-300">Homework</a>
+          <a href="#/history" className="hover:text-emerald-300">History</a>
+          <a href="#/settings" className="hover:text-emerald-300">Settings</a>
+        </nav>
+      </div>
     </header>
   );
 }
