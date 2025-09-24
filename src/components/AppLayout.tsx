@@ -12,7 +12,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="max-w-6xl mx-auto flex items-center justify-between p-4">
             {/* Logo + Title */}
             <div className="flex items-center font-bold text-xl text-white">
-              <img src="/logo.png" alt="SWAY3" className="w-8 h-8 mr-2" />
+              <img src="/logosway3.png" alt="SWAY3" className="w-8 h-8 mr-2" />
               SWAY3
             </div>
             {/* Desktop Nav */}
