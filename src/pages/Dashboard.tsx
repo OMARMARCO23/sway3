@@ -6,42 +6,58 @@ const features = [
     to: "/scan-lesson",
     Icon: BookOpen,
     title: "Scan Lesson",
-    desc: "Upload notes or textbook pages for an AI-powered summary.",
+    desc: "Upload a photo or paste text, let AI explain simply for you.",
+    color: "from-blue-500 to-indigo-500"
   },
   {
     to: "/scan-homework",
     Icon: Scan,
-    title: "Scan Homework",
-    desc: "Get hints and step-by-step guidance.",
+    title: "Homework Practice",
+    desc: "Generate exercises and test your understanding.",
+    color: "from-emerald-500 to-teal-500"
   },
   {
     to: "/history",
     Icon: FileClock,
     title: "History",
-    desc: "Review past sessions and progress.",
+    desc: "Review previous study sessions and track your progress.",
+    color: "from-purple-500 to-pink-500"
   },
   {
     to: "/settings",
     Icon: Settings,
     title: "Settings",
-    desc: "Customize the app and preferences.",
-  },
+    desc: "Switch theme, language, and customize your experience.",
+    color: "from-orange-500 to-red-500"
+  }
 ];
 
 export function Dashboard() {
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Welcome!</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {features.map(({ to, Icon, title, desc }) => (
+    <div className="max-w-6xl mx-auto">
+      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">
+        👋 Welcome back!
+      </h1>
+
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
+        {features.map(({ to, Icon, title, desc, color }) => (
           <Link
             key={to}
             to={to}
-            className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 hover:-translate-y-1 transition"
+            className={`
+              group relative p-6 rounded-xl shadow-md 
+              bg-gradient-to-r ${color} text-white
+              transform transition duration-200 hover:-translate-y-1 hover:shadow-lg
+            `}
           >
-            <Icon className="w-8 h-8 mb-2 text-blue-500" />
-            <h2 className="font-semibold text-lg">{title}</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-300">{desc}</p>
+            {/* translucent panel so text is always readable */}
+            <div className="absolute inset-0 rounded-xl bg-black/20 group-hover:bg-black/10"></div>
+
+            <div className="relative">
+              <Icon className="w-10 h-10 mb-3 text-white opacity-90" />
+              <h2 className="text-xl font-semibold mb-2">{title}</h2>
+              <p className="text-sm text-gray-100/90">{desc}</p>
+            </div>
           </Link>
         ))}
       </div>
