@@ -57,10 +57,15 @@ export function ScanLesson() {
       if (data.result) {
         setSummary(data.result);
         setMessages([{ role: "model", content: data.result }]);
+
+        // Save last lesson
         localStorage.setItem("lastLessonText", lessonText);
         localStorage.setItem("lastLessonLang", language);
-        showToast("✅ Lesson analyzed successfully!", "success");
-      } else {
+
+        // ✅ Add a "Session not yet saved" state
+        setShowSaveButton(true);
+        showToast("✅ Lesson ready. Save to History?", "success");
+    } else {
         throw new Error(data.error || "Summary failed");
       }
     } catch (err) {
