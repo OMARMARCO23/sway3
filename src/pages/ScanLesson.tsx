@@ -118,7 +118,25 @@ export function ScanLesson() {
 
     setStreaming(false);
   };
-
+{showSaveButton && (
+  <button
+    onClick={() => {
+      const newSession = {
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        lessonText,
+        summary,
+        language,
+      };
+      saveSession(newSession);
+      setShowSaveButton(false);
+      showToast("📚 Saved to history!", "success");
+    }}
+    className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded"
+  >
+    + Save to History
+  </button>
+)}
   // === UI ===
   if (!summary) {
     return (
