@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SWAY3 — Privacy Policy</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #4f46e5;
+      --container: #0f172a;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1220;
+        --text: #e6eef8;
+        --muted: #9aa8bf;
+        --accent: #7c5cff;
+      }
+    }
+    body { background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; line-height:1.6; margin:0; padding:2rem; }
+    .wrap { max-width:900px; margin:0 auto; }
+    h1,h2,h3 { color:var(--text); margin-top:1.25rem; }
+    p, li { color:var(--text); }
+    .muted { color:var(--muted); }
+    a { color:var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    pre, code { background: rgba(0,0,0,0.04); padding:4px 8px; border-radius:6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Helvetica Neue", monospace; }
+    ul { padding-left: 1.2rem; }
+    .section { margin-top:1rem; padding:1rem; border-radius:8px; background: rgba(0,0,0,0.02); }
+    @media (prefers-color-scheme: dark) {
+      .section { background: rgba(255,255,255,0.02); }
+      pre, code { background: rgba(255,255,255,0.03); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>SWAY3 — Privacy Policy</h1>
+    <p class="muted"><strong>Effective date:</strong> 2025-09-25</p>
+
+    <p>
+      SWAY3 ("we", "us", or "our") provides an AI‑powered learning assistant that helps students
+      summarize lessons, get hints, chat with an AI tutor, and practice exercises. This Privacy
+      Policy explains what information we collect, how we use it, how we share it, and the choices
+      you have about your information.
+    </p>
+
+    <h2>1. Information We Collect</h2>
+    <div class="section">
+      <ul>
+        <li><strong>User‑provided content:</strong> The text you paste, and images or photos you upload or capture for OCR (Optical Character Recognition). This content is required for SWAY3 to generate summaries, hints and practice exercises.</li>
+        <li><strong>Messages & inputs:</strong> Questions, homework answers, and chat messages you send to the AI within the app.</li>
+        <li><strong>Local data:</strong> Study sessions and history that you save in the app (by default stored locally on the device in localStorage).</li>
+        <li><strong>Technical & usage logs:</strong> Minimal server logs (timestamps, request IDs) kept by our hosting provider for reliability, debugging, and abuse prevention.</li>
+        <li><strong>Device & connection information:</strong> If you use mobile features, basic device and OS version may be visible to the app/runtime (used for analytics and troubleshooting if you opt in).</li>
+      </ul>
+    </div>
+
+    <h2>2. How We Use Your Information</h2>
+    <div class="section">
+      <ul>
+        <li>To provide the core functionality: converting scanned text (OCR), sending the text to an AI model, and returning a readable summary, hints, or exercises.</li>
+        <li>To respond to your chat questions using the lesson context you provided.</li>
+        <li>To allow you to save and revisit study sessions when you choose to save to History.</li>
+        <li>To maintain, operate, and improve the app and detect and prevent abuse or fraud.</li>
+      </ul>
+    </div>
+
+    <h2>3. How Data Flows (AI & Backend)</h2>
+    <div class="section">
+      <p>
+        When you request an AI summary, hint, chat reply, or exercise, SWAY3 sends your lesson text (or the text extracted from an image)
+        from your device to our serverless backend (hosted on Vercel). The backend forwards the text to Google’s Generative AI (Gemini) to
+        produce the response, and returns the AI output to your device.
+      </p>
+      <p>
+        <strong>Important:</strong> Your image/text is temporarily transmitted to the backend and to the AI service for processing. We do not
+        embed the AI API key in the mobile app — the key is stored securely on our backend only.
+      </p>
+    </div>
+
+    <h2>4. Sharing & Third Parties</h2>
+    <div class="section">
+      <ul>
+        <li>We may share the data you send to the extent necessary with the AI provider (Google Generative AI) to process your requests.</li>
+        <li>We use hosting and infrastructure providers (e.g., Vercel) to run our backend; these providers may retain minimal logs.</li>
+        <li>We do not sell your personal data.</li>
+        <li>We will not share user content publicly unless you choose to export or share it.</li>
+      </ul>
+    </div>
+
+    <h2>5. Where Data Is Stored & Retention</h2>
+    <div class="section">
+      <p>
+        <strong>Local Storage:</strong> By default, your saved study sessions are stored locally on your device (localStorage). You can clear this data anytime from the app Settings → Clear Local History.
+      </p>
+      <p>
+        <strong>Server logs:</strong> We may retain minimal server logs that help us operate the service and detect abuse. These logs do not include long‑term storage of your lesson content. We retain logs only as long as necessary for those purposes.
+      </p>
+    </div>
+
+    <h2>6. Security</h2>
+    <div class="section">
+      <p>All communications between the app and our backend are encrypted via HTTPS. We apply reasonable administrative, technical, and physical safeguards to protect data.</p>
+      <p>However, no online system is 100% secure. If you believe your data has been compromised, contact us immediately at the address below.</p>
+    </div>
+
+    <h2>7. Your Rights (GDPR / CCPA & equivalents)</h2>
+    <div class="section">
+      <ul>
+        <li><strong>Access & correction:</strong> You can view and edit the lesson text and session summaries stored on your device.</li>
+        <li><strong>Deletion:</strong> To delete local history, open the app Settings → Clear Local History. To request deletion of server logs or account data (if any), contact us at the address below.</li>
+        <li><strong>Data portability:</strong> You may request a copy of your stored session data; we will provide it in a common format where feasible.</li>
+      </ul>
+      <p>To exercise any rights, contact: <a href="mailto:youremail@example.com">youremail@example.com</a> (replace with your contact email).</p>
+    </div>
+
+    <h2>8. Children</h2>
+    <div class="section">
+      <p>SWAY3 is intended for general audiences (13+). If you are a parent and want your child to use SWAY3, please supervise usage. We do not knowingly collect personal information from children under 13 without parental consent.</p>
+    </div>
+
+    <h2>9. Cookies & Local Storage</h2>
+    <div class="section">
+      <p>We use localStorage on the device to store your saved sessions and language/theme preferences. We do not use browser cookies for tracking across sites. If you clear the app data or localStorage, saved sessions will be removed.</p>
+    </div>
+
+    <h2>10. International Transfers</h2>
+    <div class="section">
+      <p>Data transmitted to our backend may be processed by Google systems which operate globally. By using the app, you agree to the transfer and processing of your data in countries where our service providers operate.</p>
+    </div>
+
+    <h2>11. Changes to this Privacy Policy</h2>
+    <div class="section">
+      <p>We may update this Privacy Policy from time to time. We will post the new policy here with an updated effective date. Continued use of the app after changes indicates your acceptance.</p>
+    </div>
+
+    <h2>12. Contact</h2>
+    <div class="section">
+      <p>If you have questions, requests, or concerns about this Privacy Policy or about your data, contact us:</p>
+      <ul>
+        <li><strong>Email:</strong> <a href="mailto:omarmarco23@gmail.com">omarmarco23@gmail.com</a></li>
+        <li><strong>App/Developer:</strong> Omar Marco TEAM </li>
+        <li><strong>Hosting & API:</strong> SWAY3 uses Vercel (hosting) and Google Generative AI (Gemini) for AI processing.</li>
+      </ul>
+    </div>
+
+    <hr />
+    <p class="muted">This Privacy Policy is provided for general informational purposes and is not legal advice. For legal compliance (GDPR, CCPA, or other regional privacy laws), consult a qualified attorney.</p>
+  </div>
+</body>
+</html>
