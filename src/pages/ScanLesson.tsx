@@ -20,7 +20,7 @@ export function ScanLesson(): JSX.Element {
   const { language } = useLanguage();
   const { showToast, ToastContainer } = useToast();
 
-  // OCR (uses CDN Tesseract loaded in index.html)
+  // OCR (via CDN Tesseract)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -28,24 +28,23 @@ export function ScanLesson(): JSX.Element {
     try {
       // @ts-ignore
       const Tesseract = (window as any).Tesseract;
-      if (!Tesseract) throw new Error("Tesseract not loaded (make sure CDN script in index.html)");
+      if (!Tesseract) throw new Error("Tesseract not loaded (CDN script missing)");
       const lang = language === "fr" ? "fra" : language === "ar" ? "ara" : "eng";
-      const result = await Tesseract.recognize(file, lang, { logger: (m: any) => console.log("Tesseract", m) });
+      const result = await Tesseract.recognize(file, lang);
       const text = result?.data?.text ?? "";
       setLessonText(text);
-      showToast(language === "fr" ? "Texte extrait (OCR) !" : language === "ar" ? "تم استخراج النص (OCR)!" : "OCR text extracted!", "success");
+      showToast(language === "fr" ? "Texte OCR extrait!" : language === "ar" ? "تم استخراج النص!" : "OCR text extracted!", "success");
     } catch (err) {
       console.error("OCR failed:", err);
-      showToast(language === "fr" ? "OCR a échoué." : language === "ar" ? "فشل OCR." : "OCR failed. Please try again.", "error");
+      showToast(language === "fr" ? "Échec OCR." : language === "ar" ? "فشل OCR." : "OCR failed.", "error");
     } finally {
       setLoadingOCR(false);
     }
   };
 
-  // Summarize (AI)
   const handleAnalyze = async () => {
     if (!lessonText.trim()) {
-      showToast(language === "fr" ? "Veuillez saisir ou scanner un texte." : language === "ar" ? "الرجاء إدخال أو مسح نص." : "Please paste or scan a lesson text first.", "error");
+      showToast(language === "fr" ? "Veuillez saisir/scanner un texte." : language === "ar" ? "الرجاء إدخال أو مسح نص." : "Please paste or scan a lesson first.", "error");
       return;
     }
     setLoadingSummary(true);
@@ -56,43 +55,37 @@ export function ScanLesson(): JSX.Element {
         body: JSON.stringify({ task: "summary", payload: { text: lessonText, language } }),
       });
 
+      const raw = await res.text();
       let data: any;
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error("Server returned non-JSON response");
-      }
+      try { data = JSON.parse(raw); } catch { throw new Error("Server returned non-JSON: " + raw.slice(0, 250)); }
 
       if (!res.ok) {
-        const errMsg = data?.error ?? "Server error";
-        throw new Error(errMsg);
+        const busy = res.status === 503 || /busy/i.test(data?.error || "");
+        showToast(busy
+          ? (language === "fr" ? "Le service IA est occupé. Réessayez." : language === "ar" ? "الخدمة مشغولة. أعد المحاولة." : "The AI service is busy. Please try again.")
+          : (language === "fr" ? "Erreur d'analyse." : language === "ar" ? "خطأ أثناء التحليل." : "Error analyzing lesson."),
+          "error");
+        throw new Error(data?.details || data?.error || "Server error");
       }
 
-      if (data.result) {
-        setSummary(data.result);
-        setMessages([{ role: "model", content: data.result }]);
-        localStorage.setItem("lastLessonText", lessonText);
-        localStorage.setItem("lastLessonLang", language);
-        setShowSaveButton(true);
-        showToast(language === "fr" ? "Leçon analysée — enregistrez si vous voulez." : language === "ar" ? "تم تحليل الدرس - احفظه إن أردت." : "Lesson analyzed — save if you want.", "success");
-      } else {
-        throw new Error(data.error || "No result");
-      }
+      setSummary(data.result);
+      setMessages([{ role: "model", content: data.result }]);
+      localStorage.setItem("lastLessonText", lessonText);
+      localStorage.setItem("lastLessonLang", language);
+      setShowSaveButton(true);
+      showToast(language === "fr" ? "Leçon analysée." : language === "ar" ? "تم تحليل الدرس." : "Lesson analyzed.", "success");
     } catch (err: any) {
       console.error("Analyze error:", err);
-      showToast(language === "fr" ? "Erreur lors de l'analyse." : language === "ar" ? "حدث خطأ أثناء التحليل." : "Error analyzing lesson.", "error");
     } finally {
       setLoadingSummary(false);
     }
   };
 
-  // Chat using lesson context
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const question = input.trim();
     if (!question) return;
-    const userMsg = { role: "user" as const, content: question };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, { role: "user", content: question }]);
     setInput("");
     setStreaming(true);
 
@@ -102,30 +95,29 @@ export function ScanLesson(): JSX.Element {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ task: "chat", payload: { question, context: lessonText, language } }),
       });
-
+      const raw = await res.text();
       let data: any;
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error("Server returned non-JSON response");
-      }
+      try { data = JSON.parse(raw); } catch { throw new Error("Server returned non-JSON: " + raw.slice(0, 250)); }
 
       if (!res.ok) {
-        const errMsg = data?.error ?? "Server error";
-        throw new Error(errMsg);
+        const busy = res.status === 503 || /busy/i.test(data?.error || "");
+        showToast(busy
+          ? (language === "fr" ? "Le service IA est occupé. Réessayez." : language === "ar" ? "الخدمة مشغولة. أعد المحاولة." : "The AI service is busy. Please try again.")
+          : (language === "fr" ? "Erreur de chat." : language === "ar" ? "خطأ في المحادثة." : "Chat failed."),
+          "error");
+        setMessages((prev) => [...prev, { role: "model", content: language === "fr" ? "Erreur de chat." : language === "ar" ? "خطأ في المحادثة." : "Chat failed." }]);
+        return;
       }
 
-      setMessages((prev) => [...prev, { role: "model", content: data.result ?? (language === "fr" ? "Aucune réponse." : language === "ar" ? "لا توجد استجابة." : "No response from AI.") }]);
+      setMessages((prev) => [...prev, { role: "model", content: data.result || "" }]);
     } catch (err) {
       console.error("Chat error:", err);
-      setMessages((prev) => [...prev, { role: "model", content: language === "fr" ? "Erreur du chat." : language === "ar" ? "خطأ في المحادثة." : "Chat failed." }]);
-      showToast(language === "fr" ? "Erreur de chat" : language === "ar" ? "فشل الدردشة" : "Chat failed", "error");
+      setMessages((prev) => [...prev, { role: "model", content: language === "fr" ? "Erreur de chat." : language === "ar" ? "خطأ في المحادثة." : "Chat failed." }]);
     } finally {
       setStreaming(false);
     }
   };
 
-  // Save explicit session
   const handleSaveSession = () => {
     const newSession = {
       id: (crypto && (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}`),
@@ -140,20 +132,20 @@ export function ScanLesson(): JSX.Element {
       setShowSaveButton(false);
       showToast(language === "fr" ? "📚 Enregistré dans l'historique" : language === "ar" ? "📚 تم الحفظ في السجل" : "📚 Saved to history", "success");
     } catch (err) {
-      console.error("Save session failed", err);
-      showToast(language === "fr" ? "Échec de l'enregistrement" : language === "ar" ? "فشل الحفظ" : "Failed to save session", "error");
+      showToast(language === "fr" ? "Échec enregistrement" : language === "ar" ? "فشل الحفظ" : "Failed to save", "error");
     }
   };
 
-  // -------- UI ----------
   if (!summary) {
     return (
       <div className="max-w-3xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
-        <h1 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">📷 {language === "fr" ? "Scanner ou coller votre leçon" : language === "ar" ? "امسح أو الصق الدرس" : "Scan or Paste Your Lesson"}</h1>
+        <h1 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">📷 {language === "fr" ? "Scanner / Coller la leçon" : language === "ar" ? "امسح أو الصق الدرس" : "Scan or Paste Your Lesson"}</h1>
 
         <label className="flex items-center justify-center w-full p-6 border-2 border-dashed rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
           <Upload className="w-6 h-6 mr-2 text-blue-500" />
-          <span className="text-sm text-gray-700 dark:text-gray-300">{language === "fr" ? "Télécharger une image (OCR)" : language === "ar" ? "حمّل صورة (OCR)" : "Upload an image (OCR)"}</span>
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            {language === "fr" ? "Télécharger une image (OCR)" : language === "ar" ? "حمّل صورة (OCR)" : "Upload an image (OCR)"}
+          </span>
           <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
         </label>
 
@@ -171,7 +163,7 @@ export function ScanLesson(): JSX.Element {
           disabled={!lessonText || loadingSummary}
           className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg disabled:opacity-50"
         >
-          {loadingSummary ? (language === "fr" ? "Analyse…" : language === "ar" ? "جار التحليل…" : "Analyzing…") : (language === "fr" ? "Analyser la leçon" : language === "ar" ? "حلل النص" : "Analyze Lesson")}
+          {loadingSummary ? (language === "fr" ? "Analyse…" : language === "ar" ? "جار التحليل…" : "Analyzing…") : (language === "fr" ? "Analyser la leçon" : language === "ar" ? "حلّل النص" : "Analyze Lesson")}
           <BrainCircuit className="ml-2 w-5 h-5 inline" />
         </button>
 
@@ -180,7 +172,6 @@ export function ScanLesson(): JSX.Element {
     );
   }
 
-  // After summary: show summary, Save to history button and chat
   return (
     <div className="max-w-4xl mx-auto space-y-4">
       <div className="grid md:grid-cols-2 gap-4">
@@ -188,7 +179,6 @@ export function ScanLesson(): JSX.Element {
           <h2 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">📄 {language === "fr" ? "Texte de la leçon" : language === "ar" ? "نص الدرس" : "Lesson Text"}</h2>
           <p className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200">{lessonText}</p>
         </div>
-
         <div className="p-4 bg-blue-50 dark:bg-gray-700 rounded shadow">
           <h2 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">🤖 {language === "fr" ? "Résumé IA" : language === "ar" ? "ملخص الذكاء الاصطناعي" : "AI Explanation"}</h2>
           <p className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200">{summary}</p>
@@ -209,7 +199,6 @@ export function ScanLesson(): JSX.Element {
           {messages.map((m, i) => <ChatMessage key={i} role={m.role} content={m.content} />)}
           {streaming && <TypingIndicator />}
         </div>
-
         <form onSubmit={handleSend} className="mt-2 flex">
           <input
             className="flex-1 border rounded-l px-3 py-2 text-gray-800 dark:text-gray-200 dark:bg-gray-900"
