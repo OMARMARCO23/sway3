@@ -35,9 +35,18 @@ export function ScanHomework(): JSX.Element {
         body: JSON.stringify({ task: "exercises", payload: { text: lessonText, language } }),
       });
 
+      const raw = await res.text();
       let data: any;
-      try { data = await res.json(); } catch { throw new Error("Server returned non-JSON."); }
-      if (!res.ok) throw new Error(data?.error || "Server error");
+      try { data = JSON.parse(raw); } catch { throw new Error("Server returned non-JSON: " + raw.slice(0, 250)); }
+
+      if (!res.ok) {
+        const busy = res.status === 503 || /busy/i.test(data?.error || "");
+        showToast(busy
+          ? (language === "fr" ? "Le service IA est occupé. Réessayez." : language === "ar" ? "الخدمة مشغولة. أعد المحاولة." : "The AI service is busy. Please try again.")
+          : (language === "fr" ? "Échec génération exercices." : language === "ar" ? "فشل إنشاء التمارين." : "Failed to generate exercises."),
+          "error");
+        return;
+      }
 
       const list = (data.result || "")
         .split("\n")
@@ -71,11 +80,23 @@ export function ScanHomework(): JSX.Element {
         }),
       });
 
+      const raw = await res.text();
       let data: any;
-      try { data = await res.json(); } catch { throw new Error("Server returned non-JSON"); }
-      if (!res.ok) throw new Error(data?.error || "Server error");
+      try { data = JSON.parse(raw); } catch { throw new Error("Server returned non-JSON: " + raw.slice(0, 250)); }
 
-      setExercises((prev) => prev.map((e, i) => (i === index ? { ...e, checking: false, aiAnswer: data.result } : e)));
+      if (!res.ok) {
+        const busy = res.status === 503 || /busy/i.test(data?.error || "");
+        showToast(busy
+          ? (language === "fr" ? "Le service IA est occupé. Réessayez." : language === "ar" ? "الخدمة مشغولة. أعد المحاولة." : "The AI service is busy. Please try again.")
+          : (language === "fr" ? "Erreur de vérification." : language === "ar" ? "خطأ في التحقق." : "Failed to check answer."),
+          "error");
+        setExercises((prev) => prev.map((e, i) => (i === index ? { ...e, checking: false } : e)));
+        return;
+      }
+
+      setExercises((prev) =>
+        prev.map((e, i) => (i === index ? { ...e, checking: false, aiAnswer: data.result } : e)),
+      );
     } catch (err) {
       console.error("Check answer error:", err);
       showToast(language === "fr" ? "Erreur de vérification" : language === "ar" ? "خطأ في التحقق" : "Failed to check answer", "error");
@@ -91,13 +112,17 @@ export function ScanHomework(): JSX.Element {
 
       {!exercises.length ? (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <p className="mb-3 text-gray-800 dark:text-gray-200">{language === "fr" ? "Générez des exercices à partir de votre dernière leçon." : language === "ar" ? "انشئ تمارين من الدرس الأخير" : "Generate exercises from your last lesson."}</p>
+          <p className="mb-3 text-gray-800 dark:text-gray-200">
+            {language === "fr" ? "Générez des exercices depuis votre dernière leçon." : language === "ar" ? "أنشئ تمارين من الدرس الأخير." : "Generate exercises from your last lesson."}
+          </p>
           <button
             onClick={handleGenerateExercises}
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded flex items-center justify-center disabled:opacity-50"
           >
-            {loading ? (language === "fr" ? "Génération…" : language === "ar" ? "جارِ الإنشاء…" : "Generating…") : (language === "fr" ? "Générer les exercices" : language === "ar" ? "إنشاء التمارين" : "Generate Exercises")}
+            {loading
+              ? (language === "fr" ? "Génération…" : language === "ar" ? "جارِ الإنشاء…" : "Generating…")
+              : (language === "fr" ? "Générer les exercices" : language === "ar" ? "إنشاء التمارين" : "Generate Exercises")}
             <BookOpenCheck className="ml-2 w-4 h-4" />
           </button>
         </div>
@@ -109,7 +134,9 @@ export function ScanHomework(): JSX.Element {
               <input
                 type="text"
                 value={ex.studentAnswer || ""}
-                onChange={(e) => setExercises((prev) => prev.map((p, i) => (i === idx ? { ...p, studentAnswer: e.target.value } : p)))}
+                onChange={(e) =>
+                  setExercises((prev) => prev.map((p, i) => (i === idx ? { ...p, studentAnswer: e.target.value } : p)))
+                }
                 placeholder={language === "fr" ? "Tapez votre réponse…" : language === "ar" ? "اكتب إجابتك…" : "Type your answer…"}
                 className="w-full border rounded px-3 py-2 mb-2 dark:bg-gray-900 dark:text-gray-200"
               />
@@ -119,9 +146,15 @@ export function ScanHomework(): JSX.Element {
                   disabled={ex.checking}
                   className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded disabled:opacity-50"
                 >
-                  {ex.checking ? (language === "fr" ? "Vérification…" : language === "ar" ? "جار التحقق…" : "Checking…") : (language === "fr" ? "Vérifier la réponse" : language === "ar" ? "تحقق" : "Check Answer")}
+                  {ex.checking
+                    ? (language === "fr" ? "Vérification…" : language === "ar" ? "جار التحقق…" : "Checking…")
+                    : (language === "fr" ? "Vérifier la réponse" : language === "ar" ? "تحقق" : "Check Answer")}
                 </button>
-                {ex.aiAnswer && <div className="text-sm text-gray-800 dark:text-gray-200 pl-3 border-l-4 border-green-500">{ex.aiAnswer}</div>}
+                {ex.aiAnswer && (
+                  <div className="text-sm text-gray-800 dark:text-gray-200 pl-3 border-l-4 border-green-500">
+                    {ex.aiAnswer}
+                  </div>
+                )}
               </div>
             </div>
           ))}
