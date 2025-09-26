@@ -1,16 +1,8 @@
 // src/utils/api.ts
-const PROD = "https://sway3.vercel.app";
-
-function isCapacitorLike() {
-  if (typeof window === "undefined") return true;
-  const proto = window.location.protocol;
-  const host = window.location.hostname;
-  return proto === "capacitor:" || host === "localhost";
-}
+const API_BASE = "https://sway3.vercel.app";
 
 export async function apiFetch(path: string, init?: RequestInit) {
-  const base = isCapacitorLike() ? PROD : "";
-  const url = path.startsWith("http") ? path : `${base}${path}`;
+  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
   try {
     console.log("[API] fetch:", url);
   } catch {}
