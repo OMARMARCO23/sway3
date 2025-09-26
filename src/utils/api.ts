@@ -1,19 +1,18 @@
 // src/utils/api.ts
-export const API_BASE = (() => {
-  // In Capacitor (mobile) the WebView runs from file://, so use the deployed backend URL
-  if (typeof window === "undefined") return "https://sway3.vercel.app";
-  if (window.location.protocol === "file:") {
-    return "https://sway3.vercel.app";
-  }
-  // In web/dev (vite) use relative paths (you can use vite proxy during dev)
-  return "";
-})();
+const PROD = "https://sway3.vercel.app";
 
-/**
- * apiFetch wraps fetch so the app uses absolute URL on mobile and relative on web/dev
- * Usage: apiFetch("/api/gemini", {...})
- */
+function isCapacitorLike() {
+  if (typeof window === "undefined") return true;
+  const proto = window.location.protocol;
+  const host = window.location.hostname;
+  return proto === "capacitor:" || host === "localhost";
+}
+
 export async function apiFetch(path: string, init?: RequestInit) {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const base = isCapacitorLike() ? PROD : "";
+  const url = path.startsWith("http") ? path : `${base}${path}`;
+  try {
+    console.log("[API] fetch:", url);
+  } catch {}
   return fetch(url, init);
 }
