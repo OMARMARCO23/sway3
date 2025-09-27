@@ -1,13 +1,7 @@
 // api/gemini.js
-// Robust server with model fallback + retries + clear JSON errors.
-// Works on Vercel Node functions (CommonJS).
-
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Small helpers
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 function safeExtractText(result) {
   try {
@@ -17,12 +11,11 @@ function safeExtractText(result) {
       if (typeof result.response.text === "string") return result.response.text;
     }
     return JSON.stringify(result).slice(0, 4000);
-  } catch (e) {
+  } catch {
     return String(result);
   }
 }
 
-// Tries several models and retries transient overloads (503) per model
 async function generateWithRetries(genAI, prompt) {
   const candidates = [
     "gemini-2.0-flash",
@@ -30,10 +23,9 @@ async function generateWithRetries(genAI, prompt) {
     "models/text-bison-001",
     "models/chat-bison-001",
   ];
+  const backoffs = [0, 600, 1500];
 
-  const backoffs = [0, 600, 1500]; // ms between attempts on same model
   let lastErr = null;
-
   for (const modelId of candidates) {
     let model;
     try {
@@ -54,31 +46,21 @@ async function generateWithRetries(genAI, prompt) {
         const overloaded = e?.status === 503 || /overloaded|503/i.test(msg);
         const notFound = e?.status === 404;
 
-        console.warn(
-          `[api/gemini] model ${modelId} attempt ${i + 1} failed:`,
-          e?.status || "",
-          e?.statusText || "",
-          msg,
-        );
+        console.warn(`[api/gemini] model ${modelId} attempt ${i + 1} failed:`, e?.status || "", e?.statusText || "", msg);
 
-        if (notFound) break; // try next candidate immediately
-
+        if (notFound) break;
         if (overloaded && i < backoffs.length - 1) {
           await sleep(backoffs[i + 1]);
-          continue; // retry same model
+          continue;
         }
-
-        // any other error → try next candidate
         break;
       }
     }
   }
-
   throw lastErr;
 }
 
 module.exports = async function handler(req, res) {
-  // CORS (mobile + web)
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -90,17 +72,14 @@ module.exports = async function handler(req, res) {
     const { task, payload } = body || {};
 
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error("[api/gemini] Missing GEMINI_API_KEY");
-      return res.status(500).json({ error: "Missing GEMINI_API_KEY in environment" });
-    }
+    if (!apiKey) return res.status(500).json({ error: "Missing GEMINI_API_KEY in environment" });
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // TASK: SUMMARY
+    // SUMMARY
     if (task === "summary") {
-      const textRaw = (payload && payload.text) || "";
-      const language = (payload && payload.language) || "en";
+      const textRaw = payload?.text || "";
+      const language = payload?.language || "en";
       const text = textRaw.slice(0, 8000);
 
       let prompt = text;
@@ -114,7 +93,6 @@ module.exports = async function handler(req, res) {
       } catch (err) {
         const msg = String(err?.message || err);
         const overloaded = /503|overloaded/i.test(msg);
-        console.error("[api/gemini] summary final error:", msg);
         return res.status(overloaded ? 503 : 500).json({
           error: overloaded ? "The AI service is busy. Please try again." : "Gemini API call failed (summary)",
           details: msg,
@@ -122,11 +100,11 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // TASK: CHAT
+    // CHAT (lesson-context)
     if (task === "chat") {
-      const question = (payload && payload.question) || "";
-      const contextRaw = (payload && payload.context) || "";
-      const language = (payload && payload.language) || "en";
+      const question = payload?.question || "";
+      const contextRaw = payload?.context || "";
+      const language = payload?.language || "en";
       const context = contextRaw.slice(0, 8000);
 
       let prompt = `Lesson context:\n${context}\n\nStudent question:\n${question}\n\nAnswer clearly.`;
@@ -140,7 +118,6 @@ module.exports = async function handler(req, res) {
       } catch (err) {
         const msg = String(err?.message || err);
         const overloaded = /503|overloaded/i.test(msg);
-        console.error("[api/gemini] chat final error:", msg);
         return res.status(overloaded ? 503 : 500).json({
           error: overloaded ? "The AI service is busy. Please try again." : "Gemini API call failed (chat)",
           details: msg,
@@ -148,37 +125,66 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // TASK: HINT
-    if (task === "hint") {
-      const question = (payload && payload.question) || "";
+    // STUDY-ONLY CHAT (no scanned lesson)
+    if (task === "studyChat") {
+      const question = payload?.question || "";
+      const subject = payload?.subject || "General";
+      const language = payload?.language || "en";
+
+      // Study-only guardrails: refuse non-academic politely
+      let rules = `You are SWAY3, a study-only tutor. Only answer academic questions (school/college subjects).
+If the question is not academic, politely refuse with one sentence: "I can only help with academic topics."
+Keep answers clear and age-appropriate. Subject: ${subject}.`;
+
+      if (language === "fr") {
+        rules = `Tu es SWAY3, un tuteur scolaire. Réponds seulement aux questions académiques (matières scolaires).
+Si la question n'est pas académique, refuse poliment en une phrase: "Je peux seulement aider sur des sujets académiques."
+Réponse claire et adaptée. Matière: ${subject}.`;
+      }
+      if (language === "ar") {
+        rules = `أنت SWAY3، مُعلّم للدراسة فقط. أجب على الأسئلة الأكاديمية فقط (مواد دراسية).
+إذا كان السؤال غير أكاديمي فاعتذر بجملة واحدة: "أستطيع المساعدة في المواضيع الأكاديمية فقط."
+اجعل الإجابة واضحة وبسيطة. المادة: ${subject}.`;
+      }
+
+      const prompt = `${rules}\n\nStudent question:\n${question}`;
+
       try {
-        const { result } = await generateWithRetries(
-          genAI,
-          `Give a short one-sentence hint for this question (not the answer):\n\n${question}`,
-        );
+        const { result, modelId } = await generateWithRetries(genAI, prompt);
+        const out = safeExtractText(result);
+        return res.status(200).json({ result: out, modelUsed: modelId });
+      } catch (err) {
+        const msg = String(err?.message || err);
+        const overloaded = /503|overloaded/i.test(msg);
+        return res.status(overloaded ? 503 : 500).json({
+          error: overloaded ? "The AI service is busy. Please try again." : "Gemini API call failed (studyChat)",
+          details: msg,
+        });
+      }
+    }
+
+    // HINT
+    if (task === "hint") {
+      const question = payload?.question || "";
+      try {
+        const { result } = await generateWithRetries(genAI, `Give a short one-sentence hint (not the answer):\n\n${question}`);
         const out = safeExtractText(result);
         return res.status(200).json({ result: out });
       } catch (err) {
         const msg = String(err?.message || err);
         const overloaded = /503|overloaded/i.test(msg);
-        console.error("[api/gemini] hint final error:", msg);
-        return res.status(overloaded ? 503 : 500).json({
-          error: overloaded ? "The AI service is busy. Please try again." : "Gemini API call failed (hint)",
-          details: msg,
-        });
+        return res.status(overloaded ? 503 : 500).json({ error: overloaded ? "The AI service is busy. Please try again." : "Gemini API call failed (hint)", details: msg });
       }
     }
 
-    // TASK: EXERCISES
+    // EXERCISES
     if (task === "exercises") {
-      const textRaw = (payload && payload.text) || "";
-      const language = (payload && payload.language) || "en";
+      const textRaw = payload?.text || "";
+      const language = payload?.language || "en";
       const text = textRaw.slice(0, 8000);
-
       let prompt = `From this lesson, create 3 short practice exercises (numbered):\n\n${text}`;
       if (language === "fr") prompt = `À partir de ce cours, crée 3 exercices concis (numérotés) :\n\n${text}`;
       if (language === "ar") prompt = `بناءً على هذا الدرس، أنشئ 3 تمارين قصيرة مرقمة:\n\n${text}`;
-
       try {
         const { result, modelId } = await generateWithRetries(genAI, prompt);
         const out = safeExtractText(result);
@@ -186,24 +192,18 @@ module.exports = async function handler(req, res) {
       } catch (err) {
         const msg = String(err?.message || err);
         const overloaded = /503|overloaded/i.test(msg);
-        console.error("[api/gemini] exercises final error:", msg);
-        return res.status(overloaded ? 503 : 500).json({
-          error: overloaded ? "The AI service is busy. Please try again." : "Gemini API call failed (exercises)",
-          details: msg,
-        });
+        return res.status(overloaded ? 503 : 500).json({ error: overloaded ? "The AI service is busy. Please try again." : "Gemini API call failed (exercises)", details: msg });
       }
     }
 
-    // TASK: CHECK ANSWER
+    // CHECK ANSWER
     if (task === "checkAnswer") {
-      const question = (payload && payload.question) || "";
-      const studentAnswer = (payload && payload.studentAnswer) || "";
-      const language = (payload && payload.language) || "en";
-
+      const question = payload?.question || "";
+      const studentAnswer = payload?.studentAnswer || "";
+      const language = payload?.language || "en";
       let prompt = `Question:\n${question}\n\nStudent's answer:\n${studentAnswer}\nEvaluate correctness and give a brief correction if needed.`;
-      if (language === "fr") prompt = `Question:\n${question}\n\nRéponse:\n${studentAnswer}\n Évalue si c'est correct et propose une correction brève.`;
-      if (language === "ar") prompt = `السؤال:\n${question}\n\nإجابة الطالب:\n${studentAnswer}\n قيّم الإجابة وقدّم تصحيحًا موجزًا إذا لزم.`;
-
+      if (language === "fr") prompt = `Question:\n${question}\n\nRéponse:\n${studentAnswer}\nÉvalue si c'est correct et propose une correction brève.`;
+      if (language === "ar") prompt = `السؤال:\n${question}\n\nإجابة الطالب:\n${studentAnswer}\nقيّم الإجابة وقدّم تصحيحًا موجزًا إذا لزم.`;
       try {
         const { result, modelId } = await generateWithRetries(genAI, prompt);
         const out = safeExtractText(result);
@@ -211,11 +211,7 @@ module.exports = async function handler(req, res) {
       } catch (err) {
         const msg = String(err?.message || err);
         const overloaded = /503|overloaded/i.test(msg);
-        console.error("[api/gemini] checkAnswer final error:", msg);
-        return res.status(overloaded ? 503 : 500).json({
-          error: overloaded ? "The AI service is busy. Please try again." : "Gemini API call failed (checkAnswer)",
-          details: msg,
-        });
+        return res.status(overloaded ? 503 : 500).json({ error: overloaded ? "The AI service is busy. Please try again." : "Gemini API call failed (checkAnswer)", details: msg });
       }
     }
 
