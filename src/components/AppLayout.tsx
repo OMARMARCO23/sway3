@@ -1,40 +1,95 @@
+import React from "react";
+import { NavLink } from "react-router-dom";
 import { BottomNav } from "./BottomNav";
-import { useTheme } from "../contexts/ThemeContext";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { theme } = useTheme();
-
   return (
-    <div className={`${theme === "dark" ? "dark" : ""}`}>
-      <div className="bg-gray-100 dark:bg-gray-900 min-h-screen">
-        {/* Header */}
-        <header className="bg-gradient-to-r from-indigo-600 to-purple-600 shadow-md fixed top-0 left-0 right-0 z-20">
-          <div className="max-w-6xl mx-auto flex items-center justify-between p-4">
-            {/* Logo + Title */}
-            <div className="flex items-center font-bold text-xl text-white">
-              <img src="/logo.png" alt="SWAY3" className="w-8 h-8 mr-2" />
-              SWAY3
-            </div>
-            {/* Desktop Nav */}
-            <nav className="hidden md:flex space-x-6 text-white font-medium">
-              <a href="#/dashboard" className="hover:text-emerald-300">Dashboard</a>
-              <a href="#/scan-lesson" className="hover:text-emerald-300">Scan Lesson</a>
-              <a href="#/scan-homework" className="hover:text-emerald-300">Homework</a>
-              <a href="#/history" className="hover:text-emerald-300">History</a>
-              <a href="#/settings" className="hover:text-emerald-300">Settings</a>
-            </nav>
+    <div className="bg-gray-100 dark:bg-gray-900 min-h-screen">
+      {/* Upper App Bar */}
+      <header className="fixed top-0 left-0 right-0 bg-gradient-to-r from-indigo-600 to-purple-600 shadow-md z-20">
+        <div className="max-w-6xl mx-auto flex items-center justify-between p-4">
+          {/* Brand */}
+          <div className="flex items-center">
+            <img
+              src="/logo.png"
+              alt="SWAY3"
+              className="w-8 h-8 mr-2"
+              onError={(e) => {
+                // fallback if logo not found
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+            <span className="text-white font-bold text-xl tracking-wide">SWAY3</span>
           </div>
-        </header>
 
-        {/* Page content */}
-        <main className="pt-20 pb-20 px-4 max-w-6xl mx-auto">
-          {children}
-        </main>
-
-        {/* Mobile Bottom Nav */}
-        <div className="md:hidden">
-          <BottomNav />
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-6 text-white">
+            <NavLink
+              to="/dashboard"
+              className={({ isActive }) =>
+                `hover:text-emerald-300 ${isActive ? "text-emerald-200 font-semibold" : ""}`
+              }
+            >
+              Dashboard
+            </NavLink>
+            <NavLink
+              to="/scan-lesson"
+              className={({ isActive }) =>
+                `hover:text-emerald-300 ${isActive ? "text-emerald-200 font-semibold" : ""}`
+              }
+            >
+              Scan Lesson
+            </NavLink>
+            <NavLink
+              to="/ask-ai"
+              className={({ isActive }) =>
+                `hover:text-emerald-300 ${isActive ? "text-emerald-200 font-semibold" : ""}`
+              }
+            >
+              Ask AI
+            </NavLink>
+            <NavLink
+              to="/scan-homework"
+              className={({ isActive }) =>
+                `hover:text-emerald-300 ${isActive ? "text-emerald-200 font-semibold" : ""}`
+              }
+            >
+              Homework
+            </NavLink>
+            <NavLink
+              to="/history"
+              className={({ isActive }) =>
+                `hover:text-emerald-300 ${isActive ? "text-emerald-200 font-semibold" : ""}`
+              }
+            >
+              History
+            </NavLink>
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                `hover:text-emerald-300 ${isActive ? "text-emerald-200 font-semibold" : ""}`
+              }
+            >
+              Settings
+            </NavLink>
+          </nav>
         </div>
+      </header>
+
+      {/* Page content */}
+      <main
+        className="pt-20 pb-24 px-4 max-w-6xl mx-auto"
+        style={{
+          // extra room for devices with a home indicator
+          paddingBottom: "calc(6rem + env(safe-area-inset-bottom))",
+        }}
+      >
+        {children}
+      </main>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden">
+        <BottomNav />
       </div>
     </div>
   );
