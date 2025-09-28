@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Camera as CameraIcon, Upload, BrainCircuit } from "lucide-react";
+import { BrainCircuit, Upload, Camera as CameraIcon } from "lucide-react";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { ChatMessage } from "../components/ChatMessage";
 import { TypingIndicator } from "../components/TypingIndicator";
@@ -24,15 +24,15 @@ export function ScanLesson(): JSX.Element {
   const [showSaveButton, setShowSaveButton] = useState(false);
 
   // Language
-  const { language: uiLang } = useLanguage();
-  const [explainLang, setExplainLang] = useState<Lang>(uiLang as Lang); // per-lesson override
+  const { language: uiLang } = useLanguage();     // UI language
+  const [explainLang, setExplainLang] = useState<Lang>(uiLang as Lang); // per-lesson language
 
   const { showToast, ToastContainer } = useToast();
 
-  // Map language to Tesseract language packs
+  // Map to Tesseract traineddata
   const tesseractLang = explainLang === "fr" ? "fra" : explainLang === "ar" ? "ara" : "eng";
 
-  // OCR via camera
+  // ===== OCR: Camera =====
   const handleTakePhoto = async () => {
     try {
       setLoadingOCR(true);
@@ -46,7 +46,7 @@ export function ScanLesson(): JSX.Element {
       const resp = await fetch(photo.webPath);
       const blob = await resp.blob();
 
-      // @ts-ignore - loaded via CDN
+      // @ts-ignore — Tesseract via CDN in index.html
       const Tesseract = (window as any).Tesseract;
       if (!Tesseract) throw new Error("Tesseract not loaded (CDN missing)");
 
@@ -68,13 +68,13 @@ export function ScanLesson(): JSX.Element {
     }
   };
 
-  // OCR via file upload
+  // ===== OCR: Upload =====
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       setLoadingOCR(true);
-      // @ts-ignore - loaded via CDN
+      // @ts-ignore — Tesseract via CDN in index.html
       const Tesseract = (window as any).Tesseract;
       if (!Tesseract) throw new Error("Tesseract not loaded (CDN missing)");
 
@@ -96,11 +96,11 @@ export function ScanLesson(): JSX.Element {
     }
   };
 
-  // Analyze lesson with AI
+  // ===== Analyze (AI summary) =====
   const handleAnalyze = async () => {
     if (!lessonText.trim()) {
       showToast(
-        explainLang === "fr" ? "Veuillez saisir/scanner un texte." : explainLang === "ar" ? "الرجاء إدخال أو مسح نص." : "Please paste or scan a lesson.",
+        explainLang === "fr" ? "Veuillez saisir/scanner un texte." : explainLang === "ar" ? "الرجاء إدخال أو مسح نص." : "Please paste or scan a lesson first.",
         "error"
       );
       return;
@@ -125,16 +125,8 @@ export function ScanLesson(): JSX.Element {
         const busy = res.status === 503 || /busy/i.test(data?.error || "");
         showToast(
           busy
-            ? explainLang === "fr"
-              ? "Le service IA est occupé. Réessayez."
-              : explainLang === "ar"
-              ? "الخدمة مشغولة. أعد المحاولة."
-              : "The AI service is busy. Please try again."
-            : explainLang === "fr"
-            ? "Erreur d'analyse."
-            : explainLang === "ar"
-            ? "خطأ أثناء التحليل."
-            : "Error analyzing lesson.",
+            ? (explainLang === "fr" ? "Le service IA est occupé. Réessayez." : explainLang === "ar" ? "الخدمة مشغولة. أعد المحاولة." : "The AI service is busy. Please try again.")
+            : (explainLang === "fr" ? "Erreur d'analyse." : explainLang === "ar" ? "خطأ أثناء التحليل." : "Error analyzing lesson."),
           "error"
         );
         throw new Error(data?.details || data?.error || "Server error");
@@ -156,7 +148,7 @@ export function ScanLesson(): JSX.Element {
     }
   };
 
-  // Chat about the lesson
+  // ===== Chat (about lesson) =====
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const question = input.trim();
@@ -185,16 +177,8 @@ export function ScanLesson(): JSX.Element {
         const busy = res.status === 503 || /busy/i.test(data?.error || "");
         showToast(
           busy
-            ? explainLang === "fr"
-              ? "Le service IA est occupé. Réessayez."
-              : explainLang === "ar"
-              ? "الخدمة مشغولة. أعد المحاولة."
-              : "The AI service is busy. Please try again."
-            : explainLang === "fr"
-            ? "Erreur de chat."
-            : explainLang === "ar"
-            ? "خطأ في المحادثة."
-            : "Chat failed.",
+            ? (explainLang === "fr" ? "Le service IA est occupé. Réessayez." : explainLang === "ar" ? "الخدمة مشغولة. أعد المحاولة." : "The AI service is busy. Please try again.")
+            : (explainLang === "fr" ? "Erreur de chat." : explainLang === "ar" ? "خطأ في المحادثة." : "Chat failed."),
           "error"
         );
         setMessages((prev) => [...prev, { role: "model", content: explainLang === "fr" ? "Erreur de chat." : explainLang === "ar" ? "خطأ في المحادثة." : "Chat failed." }]);
@@ -210,7 +194,7 @@ export function ScanLesson(): JSX.Element {
     }
   };
 
-  // Save explicit session to history
+  // ===== Save to history =====
   const handleSaveSession = () => {
     const newSession = {
       id: (crypto && (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}`),
@@ -236,7 +220,8 @@ export function ScanLesson(): JSX.Element {
   };
 
   // ===== UI =====
-  // Initial state
+
+  // Initial view (before summary)
   if (!summary) {
     return (
       <div className="max-w-3xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow space-y-4">
@@ -245,7 +230,7 @@ export function ScanLesson(): JSX.Element {
             {uiLang === "fr" ? "Scanner / Coller la leçon" : uiLang === "ar" ? "امسح أو الصق الدرس" : "Scan or Paste Your Lesson"}
           </h1>
 
-          {/* Per-lesson language */}
+          {/* Per-lesson explanation language */}
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-800 dark:text-gray-200">
               {uiLang === "fr" ? "Expliquer en" : uiLang === "ar" ? "الشرح بـ" : "Explain in"}
@@ -276,11 +261,16 @@ export function ScanLesson(): JSX.Element {
           <label className="inline-flex items-center gap-2 bg-slate-200 dark:bg-slate-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-600">
             <Upload className="w-5 h-5" />
             <span>{uiLang === "fr" ? "Télécharger une image" : uiLang === "ar" ? "رفع صورة" : "Upload Image"}</span>
-            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+            {/* capture="environment" opens camera on mobile browsers */}
+            <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} className="hidden" />
           </label>
         </div>
 
-        {loadingOCR && <p className="text-sm text-blue-500">{uiLang === "fr" ? "Extraction du texte…" : uiLang === "ar" ? "جار استخراج النص..." : "Extracting text…"}</p>}
+        {loadingOCR && (
+          <p className="text-sm text-blue-500">
+            {uiLang === "fr" ? "Extraction du texte…" : uiLang === "ar" ? "جار استخراج النص..." : "Extracting text…"}
+          </p>
+        )}
 
         <textarea
           className="w-full h-44 p-3 border rounded-lg text-gray-800 dark:text-gray-200 dark:bg-gray-900"
@@ -332,10 +322,7 @@ export function ScanLesson(): JSX.Element {
           </select>
 
           {showSaveButton && (
-            <button
-              onClick={handleSaveSession}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded"
-            >
+            <button onClick={handleSaveSession} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded">
               {uiLang === "fr" ? "Enregistrer" : uiLang === "ar" ? "حفظ" : "Save"}
             </button>
           )}
@@ -357,6 +344,7 @@ export function ScanLesson(): JSX.Element {
           <h3 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">
             {uiLang === "fr" ? "Explication IA" : uiLang === "ar" ? "الشرح بالذكاء الاصطناعي" : "AI Explanation"}
           </h3>
+          {/* Bigger, cleaner, not condensed */}
           <div className="max-w-[70ch] text-lg md:text-xl leading-8 text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
             {summary}
           </div>
@@ -376,13 +364,7 @@ export function ScanLesson(): JSX.Element {
             className="flex-1 border rounded-l px-3 py-2 text-gray-800 dark:text-gray-200 dark:bg-gray-900"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              uiLang === "fr"
-                ? "Posez une question…"
-                : uiLang === "ar"
-                ? "اطرح سؤالاً…"
-                : "Ask a question…"
-            }
+            placeholder={uiLang === "fr" ? "Posez une question…" : uiLang === "ar" ? "اطرح سؤالاً…" : "Ask a question…"}
           />
           <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r">
             {uiLang === "fr" ? "Envoyer" : uiLang === "ar" ? "إرسال" : "Send"}
