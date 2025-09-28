@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { BrainCircuit, Upload, Camera as CameraIcon } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { ChatMessage } from "../components/ChatMessage";
 import { TypingIndicator } from "../components/TypingIndicator";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -8,17 +10,6 @@ import { saveSession } from "../utils/sessionManager";
 import { apiFetch } from "../utils/api";
 
 type Lang = "en" | "fr" | "ar";
-
-// Safe dynamic import for @capacitor/camera (prevents Rollup/Vercel from bundling it)
-async function importCapacitorCamera() {
-  // eslint-disable-next-line no-new-func
-  const dynamicImport = new Function("s", "return import(s)");
-  return dynamicImport("@capacitor/camera") as Promise<{
-    Camera: any;
-    CameraResultType: any;
-    CameraSource: any;
-  }>;
-}
 
 export function ScanLesson(): JSX.Element {
   // Content states
@@ -39,16 +30,26 @@ export function ScanLesson(): JSX.Element {
 
   const { showToast, ToastContainer } = useToast();
 
-  // Map to Tesseract traineddata
+  const isNative = Capacitor.getPlatform() !== "web";
   const tesseractLang = explainLang === "fr" ? "fra" : explainLang === "ar" ? "ara" : "eng";
 
-  // ===== OCR: Camera (dynamic, native-only) =====
+  // ===== OCR: Camera (native) =====
   const handleTakePhoto = async () => {
+    if (!isNative) {
+      // Correct behavior on PC/web
+      showToast(
+        explainLang === "fr"
+          ? "Caméra indisponible ici. Utilisez 'Télécharger'."
+          : explainLang === "ar"
+          ? "الكاميرا غير متاحة هنا. استعمل 'تحميل'."
+          : "Camera not available here. Please use 'Upload'.",
+        "error"
+      );
+      return;
+    }
+
     try {
       setLoadingOCR(true);
-      // Try to load camera plugin at runtime
-      const { Camera, CameraResultType, CameraSource } = await importCapacitorCamera();
-
       const photo = await Camera.getPhoto({
         source: CameraSource.Camera,
         resultType: CameraResultType.Uri,
@@ -59,7 +60,7 @@ export function ScanLesson(): JSX.Element {
       const resp = await fetch(photo.webPath);
       const blob = await resp.blob();
 
-      // @ts-ignore — Tesseract via CDN
+      // @ts-ignore — Tesseract via CDN in index.html
       const Tesseract = (window as any).Tesseract;
       if (!Tesseract) throw new Error("Tesseract not loaded (CDN missing)");
 
@@ -72,13 +73,8 @@ export function ScanLesson(): JSX.Element {
       );
     } catch (err) {
       console.error("Camera/OCR error:", err);
-      // If plugin not available (web), guide to Upload Image
       showToast(
-        explainLang === "fr"
-          ? "Caméra indisponible ici. Utilisez 'Télécharger une image'."
-          : explainLang === "ar"
-          ? "الكاميرا غير متاحة هنا. استعمل 'رفع صورة'."
-          : "Camera not available here. Please use 'Upload Image'.",
+        explainLang === "fr" ? "Échec OCR (caméra)." : explainLang === "ar" ? "فشل OCR (الكاميرا)." : "OCR failed (camera).",
         "error"
       );
     } finally {
@@ -218,7 +214,7 @@ export function ScanLesson(): JSX.Element {
     }
   };
 
-  // ===== Save to history (prominent button) =====
+  // ===== Save to history =====
   const handleSaveSession = () => {
     const newSession = {
       id: (crypto && (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}`),
@@ -244,8 +240,6 @@ export function ScanLesson(): JSX.Element {
   };
 
   // ===== UI =====
-
-  // Before summary
   if (!summary) {
     return (
       <div className="max-w-3xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow space-y-4">
@@ -278,12 +272,14 @@ export function ScanLesson(): JSX.Element {
             className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded disabled:opacity-60"
           >
             <CameraIcon className="w-5 h-5" />
-            {uiLang === "fr" ? "Prendre une photo" : uiLang === "ar" ? "التقاط صورة" : "Take Photo"}
+            {/* French labels changed */}
+            {uiLang === "fr" ? "Caméra" : uiLang === "ar" ? "الكاميرا" : "Take Photo"}
           </button>
 
           <label className="inline-flex items-center gap-2 bg-slate-200 dark:bg-slate-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-600">
             <Upload className="w-5 h-5" />
-            <span>{uiLang === "fr" ? "Télécharger une image" : uiLang === "ar" ? "رفع صورة" : "Upload Image"}</span>
+            {/* French labels changed */}
+            <span>{uiLang === "fr" ? "Télécharger" : uiLang === "ar" ? "تحميل" : "Upload"}</span>
             {/* capture opens camera on many mobile browsers */}
             <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} className="hidden" />
           </label>
@@ -316,7 +312,7 @@ export function ScanLesson(): JSX.Element {
     );
   }
 
-  // After summary (bigger, cleaner explanation + Save to History button)
+  // After summary
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       {/* Header controls */}
@@ -367,7 +363,7 @@ export function ScanLesson(): JSX.Element {
         </div>
       </div>
 
-      {/* Save to History — prominent button */}
+      {/* Save to History — prominent */}
       {showSaveButton && (
         <div className="flex justify-end">
           <button
