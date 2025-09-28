@@ -9,23 +9,8 @@ import { apiFetch } from "../utils/api";
 
 type Lang = "en" | "fr" | "ar";
 
-// Detect if running in Capacitor native context (no need to import @capacitor/core)
-function isNativeCapacitor(): boolean {
-  try {
-    // Capacitor injects window.Capacitor with getPlatform
-    const c = (window as any).Capacitor;
-    if (c?.getPlatform && c.getPlatform() !== "web") return true;
-    // Older webviews sometimes use capacitor://localhost
-    if (window.location.protocol === "capacitor:") return true;
-  } catch {}
-  return false;
-}
-
-// Safe dynamic import that bundlers won't statically resolve
+// Safe dynamic import for @capacitor/camera (prevents Rollup/Vercel from bundling it)
 async function importCapacitorCamera() {
-  // Using Function to avoid static analysis on the specifier
-  // This ensures Vercel web build won’t try to bundle @capacitor/camera
-  // and we only load it at runtime on native (when we actually call this).
   // eslint-disable-next-line no-new-func
   const dynamicImport = new Function("s", "return import(s)");
   return dynamicImport("@capacitor/camera") as Promise<{
@@ -57,24 +42,11 @@ export function ScanLesson(): JSX.Element {
   // Map to Tesseract traineddata
   const tesseractLang = explainLang === "fr" ? "fra" : explainLang === "ar" ? "ara" : "eng";
 
-  // ===== OCR: Camera (native only) =====
+  // ===== OCR: Camera (dynamic, native-only) =====
   const handleTakePhoto = async () => {
-    if (!isNativeCapacitor()) {
-      showToast(
-        explainLang === "fr"
-          ? "Caméra indisponible ici. Utilisez 'Télécharger une image'."
-          : explainLang === "ar"
-          ? "الكاميرا غير متاحة هنا. استعمل 'رفع صورة'."
-          : "Camera not available here. Please use 'Upload Image'.",
-        "error"
-      );
-      return;
-    }
-
     try {
       setLoadingOCR(true);
-
-      // Load camera plugin only at runtime on native
+      // Try to load camera plugin at runtime
       const { Camera, CameraResultType, CameraSource } = await importCapacitorCamera();
 
       const photo = await Camera.getPhoto({
@@ -87,7 +59,7 @@ export function ScanLesson(): JSX.Element {
       const resp = await fetch(photo.webPath);
       const blob = await resp.blob();
 
-      // @ts-ignore — Tesseract via CDN in index.html
+      // @ts-ignore — Tesseract via CDN
       const Tesseract = (window as any).Tesseract;
       if (!Tesseract) throw new Error("Tesseract not loaded (CDN missing)");
 
@@ -100,8 +72,13 @@ export function ScanLesson(): JSX.Element {
       );
     } catch (err) {
       console.error("Camera/OCR error:", err);
+      // If plugin not available (web), guide to Upload Image
       showToast(
-        explainLang === "fr" ? "Échec OCR (caméra)." : explainLang === "ar" ? "فشل OCR (الكاميرا)." : "OCR failed (camera).",
+        explainLang === "fr"
+          ? "Caméra indisponible ici. Utilisez 'Télécharger une image'."
+          : explainLang === "ar"
+          ? "الكاميرا غير متاحة هنا. استعمل 'رفع صورة'."
+          : "Camera not available here. Please use 'Upload Image'.",
         "error"
       );
     } finally {
@@ -115,7 +92,7 @@ export function ScanLesson(): JSX.Element {
     if (!file) return;
     try {
       setLoadingOCR(true);
-      // @ts-ignore — Tesseract via CDN in index.html
+      // @ts-ignore — Tesseract via CDN
       const Tesseract = (window as any).Tesseract;
       if (!Tesseract) throw new Error("Tesseract not loaded (CDN missing)");
 
@@ -222,20 +199,26 @@ export function ScanLesson(): JSX.Element {
             : (explainLang === "fr" ? "Erreur de chat." : explainLang === "ar" ? "خطأ في المحادثة." : "Chat failed."),
           "error"
         );
-        setMessages((prev) => [...prev, { role: "model", content: explainLang === "fr" ? "Erreur de chat." : explainLang === "ar" ? "خطأ في المحادثة." : "Chat failed." }]);
+        setMessages((prev) => [
+          ...prev,
+          { role: "model", content: explainLang === "fr" ? "Erreur de chat." : explainLang === "ar" ? "خطأ في المحادثة." : "Chat failed." },
+        ]);
         return;
       }
 
       setMessages((prev) => [...prev, { role: "model", content: data.result || "" }]);
     } catch (err) {
       console.error("Chat error:", err);
-      setMessages((prev) => [...prev, { role: "model", content: explainLang === "fr" ? "Erreur de chat." : explainLang === "ar" ? "خطأ في المحادثة." : "Chat failed." }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "model", content: explainLang === "fr" ? "Erreur de chat." : explainLang === "ar" ? "خطأ في المحادثة." : "Chat failed." },
+      ]);
     } finally {
       setStreaming(false);
     }
   };
 
-  // ===== Save to history =====
+  // ===== Save to history (prominent button) =====
   const handleSaveSession = () => {
     const newSession = {
       id: (crypto && (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}`),
@@ -262,6 +245,7 @@ export function ScanLesson(): JSX.Element {
 
   // ===== UI =====
 
+  // Before summary
   if (!summary) {
     return (
       <div className="max-w-3xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow space-y-4">
@@ -287,7 +271,6 @@ export function ScanLesson(): JSX.Element {
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleTakePhoto}
@@ -301,7 +284,7 @@ export function ScanLesson(): JSX.Element {
           <label className="inline-flex items-center gap-2 bg-slate-200 dark:bg-slate-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-600">
             <Upload className="w-5 h-5" />
             <span>{uiLang === "fr" ? "Télécharger une image" : uiLang === "ar" ? "رفع صورة" : "Upload Image"}</span>
-            {/* capture opens camera on mobile browsers */}
+            {/* capture opens camera on many mobile browsers */}
             <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} className="hidden" />
           </label>
         </div>
@@ -333,6 +316,7 @@ export function ScanLesson(): JSX.Element {
     );
   }
 
+  // After summary (bigger, cleaner explanation + Save to History button)
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       {/* Header controls */}
@@ -353,22 +337,16 @@ export function ScanLesson(): JSX.Element {
           <select
             value={explainLang}
             onChange={(e) => setExplainLang(e.target.value as Lang)}
-            className="bg-gray-200 dark:bg-gray-700 rounded px-2 py-1 text-sm text-gray-800 dark:text:white"
+            className="bg-gray-200 dark:bg-gray-700 rounded px-2 py-1 text-sm text-gray-800 dark:text-white"
           >
             <option value="en">English</option>
             <option value="fr">Français</option>
             <option value="ar">العربية</option>
           </select>
-
-          {showSaveButton && (
-            <button onClick={handleSaveSession} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded">
-              {uiLang === "fr" ? "Enregistrer" : uiLang === "ar" ? "حفظ" : "Save"}
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Lesson text & AI explanation */}
+      {/* Lesson & Explanation */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow">
           <h3 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">
@@ -383,12 +361,23 @@ export function ScanLesson(): JSX.Element {
           <h3 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">
             {uiLang === "fr" ? "Explication IA" : uiLang === "ar" ? "الشرح بالذكاء الاصطناعي" : "AI Explanation"}
           </h3>
-          {/* Larger, cleaner explanation text */}
           <div className="max-w-[70ch] text-lg md:text-xl leading-8 text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
             {summary}
           </div>
         </div>
       </div>
+
+      {/* Save to History — prominent button */}
+      {showSaveButton && (
+        <div className="flex justify-end">
+          <button
+            onClick={handleSaveSession}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded shadow"
+          >
+            {uiLang === "fr" ? "+ Enregistrer dans l'historique" : uiLang === "ar" ? "+ احفظ في السجل" : "+ Save to History"}
+          </button>
+        </div>
+      )}
 
       {/* Chat */}
       <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow h-[50vh] flex flex-col">
