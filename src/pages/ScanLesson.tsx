@@ -1,7 +1,5 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { BrainCircuit, Upload, Camera as CameraIcon } from "lucide-react";
-import { Capacitor } from "@capacitor/core";
-import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { ChatMessage } from "../components/ChatMessage";
 import { TypingIndicator } from "../components/TypingIndicator";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -30,65 +28,23 @@ export function ScanLesson(): JSX.Element {
 
   const { showToast, ToastContainer } = useToast();
 
-  const isNative = Capacitor.getPlatform() !== "web";
+  // Hidden inputs for camera (capture) and upload (no capture)
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+
+  // Map to Tesseract traineddata
   const tesseractLang = explainLang === "fr" ? "fra" : explainLang === "ar" ? "ara" : "eng";
 
-  // ===== OCR: Camera (native) =====
-  const handleTakePhoto = async () => {
-    if (!isNative) {
-      // Correct behavior on PC/web
-      showToast(
-        explainLang === "fr"
-          ? "Caméra indisponible ici. Utilisez 'Télécharger'."
-          : explainLang === "ar"
-          ? "الكاميرا غير متاحة هنا. استعمل 'تحميل'."
-          : "Camera not available here. Please use 'Upload'.",
-        "error"
-      );
-      return;
-    }
-
-    try {
-      setLoadingOCR(true);
-      const photo = await Camera.getPhoto({
-        source: CameraSource.Camera,
-        resultType: CameraResultType.Uri,
-        quality: 90,
-      });
-      if (!photo?.webPath) throw new Error("No photo path");
-
-      const resp = await fetch(photo.webPath);
-      const blob = await resp.blob();
-
-      // @ts-ignore — Tesseract via CDN in index.html
-      const Tesseract = (window as any).Tesseract;
-      if (!Tesseract) throw new Error("Tesseract not loaded (CDN missing)");
-
-      const result = await Tesseract.recognize(blob, tesseractLang);
-      const text = result?.data?.text ?? "";
-      setLessonText(text);
-      showToast(
-        explainLang === "fr" ? "Texte OCR extrait !" : explainLang === "ar" ? "تم استخراج النص!" : "OCR text extracted!",
-        "success"
-      );
-    } catch (err) {
-      console.error("Camera/OCR error:", err);
-      showToast(
-        explainLang === "fr" ? "Échec OCR (caméra)." : explainLang === "ar" ? "فشل OCR (الكاميرا)." : "OCR failed (camera).",
-        "error"
-      );
-    } finally {
-      setLoadingOCR(false);
-    }
-  };
-
-  // ===== OCR: Upload =====
+  // ===== OCR: via file input (shared handler) =====
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // reset the input so selecting the same file again still triggers change
+    e.currentTarget.value = "";
     if (!file) return;
+
     try {
       setLoadingOCR(true);
-      // @ts-ignore — Tesseract via CDN
+      // @ts-ignore — Tesseract via CDN in index.html
       const Tesseract = (window as any).Tesseract;
       if (!Tesseract) throw new Error("Tesseract not loaded (CDN missing)");
 
@@ -100,9 +56,9 @@ export function ScanLesson(): JSX.Element {
         "success"
       );
     } catch (err) {
-      console.error("Upload/OCR error:", err);
+      console.error("OCR error:", err);
       showToast(
-        explainLang === "fr" ? "Échec OCR (fichier)." : explainLang === "ar" ? "فشل OCR (ملف)." : "OCR failed (file).",
+        explainLang === "fr" ? "Échec OCR." : explainLang === "ar" ? "فشل OCR." : "OCR failed.",
         "error"
       );
     } finally {
@@ -265,25 +221,45 @@ export function ScanLesson(): JSX.Element {
           </div>
         </div>
 
+        {/* Actions */}
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={handleTakePhoto}
+            onClick={() => cameraInputRef.current?.click()}
             disabled={loadingOCR}
             className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded disabled:opacity-60"
           >
             <CameraIcon className="w-5 h-5" />
-            {/* French labels changed */}
+            {/* French labels updated */}
             {uiLang === "fr" ? "Caméra" : uiLang === "ar" ? "الكاميرا" : "Take Photo"}
           </button>
 
-          <label className="inline-flex items-center gap-2 bg-slate-200 dark:bg-slate-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-600">
+          <button
+            onClick={() => uploadInputRef.current?.click()}
+            disabled={loadingOCR}
+            className="inline-flex items-center gap-2 bg-slate-200 dark:bg-slate-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded hover:bg-slate-300 dark:hover:bg-slate-600"
+          >
             <Upload className="w-5 h-5" />
-            {/* French labels changed */}
-            <span>{uiLang === "fr" ? "Télécharger" : uiLang === "ar" ? "تحميل" : "Upload"}</span>
-            {/* capture opens camera on many mobile browsers */}
-            <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} className="hidden" />
-          </label>
+            {/* French labels updated */}
+            {uiLang === "fr" ? "Télécharger" : uiLang === "ar" ? "تحميل" : "Upload"}
+          </button>
         </div>
+
+        {/* Hidden inputs */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleImageUpload}
+          className="hidden"
+        />
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="hidden"
+        />
 
         {loadingOCR && (
           <p className="text-sm text-blue-500">
@@ -357,6 +333,7 @@ export function ScanLesson(): JSX.Element {
           <h3 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">
             {uiLang === "fr" ? "Explication IA" : uiLang === "ar" ? "الشرح بالذكاء الاصطناعي" : "AI Explanation"}
           </h3>
+          {/* Big, clean explanation */}
           <div className="max-w-[70ch] text-lg md:text-xl leading-8 text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
             {summary}
           </div>
