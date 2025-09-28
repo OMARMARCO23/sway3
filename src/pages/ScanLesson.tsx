@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { BrainCircuit, Upload, Camera as CameraIcon } from "lucide-react";
-import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { ChatMessage } from "../components/ChatMessage";
 import { TypingIndicator } from "../components/TypingIndicator";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -9,6 +8,32 @@ import { saveSession } from "../utils/sessionManager";
 import { apiFetch } from "../utils/api";
 
 type Lang = "en" | "fr" | "ar";
+
+// Detect if running in Capacitor native context (no need to import @capacitor/core)
+function isNativeCapacitor(): boolean {
+  try {
+    // Capacitor injects window.Capacitor with getPlatform
+    const c = (window as any).Capacitor;
+    if (c?.getPlatform && c.getPlatform() !== "web") return true;
+    // Older webviews sometimes use capacitor://localhost
+    if (window.location.protocol === "capacitor:") return true;
+  } catch {}
+  return false;
+}
+
+// Safe dynamic import that bundlers won't statically resolve
+async function importCapacitorCamera() {
+  // Using Function to avoid static analysis on the specifier
+  // This ensures Vercel web build won’t try to bundle @capacitor/camera
+  // and we only load it at runtime on native (when we actually call this).
+  // eslint-disable-next-line no-new-func
+  const dynamicImport = new Function("s", "return import(s)");
+  return dynamicImport("@capacitor/camera") as Promise<{
+    Camera: any;
+    CameraResultType: any;
+    CameraSource: any;
+  }>;
+}
 
 export function ScanLesson(): JSX.Element {
   // Content states
@@ -24,18 +49,34 @@ export function ScanLesson(): JSX.Element {
   const [showSaveButton, setShowSaveButton] = useState(false);
 
   // Language
-  const { language: uiLang } = useLanguage();     // UI language
-  const [explainLang, setExplainLang] = useState<Lang>(uiLang as Lang); // per-lesson language
+  const { language: uiLang } = useLanguage();
+  const [explainLang, setExplainLang] = useState<Lang>(uiLang as Lang);
 
   const { showToast, ToastContainer } = useToast();
 
   // Map to Tesseract traineddata
   const tesseractLang = explainLang === "fr" ? "fra" : explainLang === "ar" ? "ara" : "eng";
 
-  // ===== OCR: Camera =====
+  // ===== OCR: Camera (native only) =====
   const handleTakePhoto = async () => {
+    if (!isNativeCapacitor()) {
+      showToast(
+        explainLang === "fr"
+          ? "Caméra indisponible ici. Utilisez 'Télécharger une image'."
+          : explainLang === "ar"
+          ? "الكاميرا غير متاحة هنا. استعمل 'رفع صورة'."
+          : "Camera not available here. Please use 'Upload Image'.",
+        "error"
+      );
+      return;
+    }
+
     try {
       setLoadingOCR(true);
+
+      // Load camera plugin only at runtime on native
+      const { Camera, CameraResultType, CameraSource } = await importCapacitorCamera();
+
       const photo = await Camera.getPhoto({
         source: CameraSource.Camera,
         resultType: CameraResultType.Uri,
@@ -221,7 +262,6 @@ export function ScanLesson(): JSX.Element {
 
   // ===== UI =====
 
-  // Initial view (before summary)
   if (!summary) {
     return (
       <div className="max-w-3xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow space-y-4">
@@ -261,7 +301,7 @@ export function ScanLesson(): JSX.Element {
           <label className="inline-flex items-center gap-2 bg-slate-200 dark:bg-slate-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-600">
             <Upload className="w-5 h-5" />
             <span>{uiLang === "fr" ? "Télécharger une image" : uiLang === "ar" ? "رفع صورة" : "Upload Image"}</span>
-            {/* capture="environment" opens camera on mobile browsers */}
+            {/* capture opens camera on mobile browsers */}
             <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} className="hidden" />
           </label>
         </div>
@@ -293,7 +333,6 @@ export function ScanLesson(): JSX.Element {
     );
   }
 
-  // After summary
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       {/* Header controls */}
@@ -314,7 +353,7 @@ export function ScanLesson(): JSX.Element {
           <select
             value={explainLang}
             onChange={(e) => setExplainLang(e.target.value as Lang)}
-            className="bg-gray-200 dark:bg-gray-700 rounded px-2 py-1 text-sm text-gray-800 dark:text-white"
+            className="bg-gray-200 dark:bg-gray-700 rounded px-2 py-1 text-sm text-gray-800 dark:text:white"
           >
             <option value="en">English</option>
             <option value="fr">Français</option>
@@ -344,7 +383,7 @@ export function ScanLesson(): JSX.Element {
           <h3 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">
             {uiLang === "fr" ? "Explication IA" : uiLang === "ar" ? "الشرح بالذكاء الاصطناعي" : "AI Explanation"}
           </h3>
-          {/* Bigger, cleaner, not condensed */}
+          {/* Larger, cleaner explanation text */}
           <div className="max-w-[70ch] text-lg md:text-xl leading-8 text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
             {summary}
           </div>
