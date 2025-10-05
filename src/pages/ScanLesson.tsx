@@ -1,4 +1,3 @@
-import { useSession } from "../contexts/SessionContext";
 import React, { useRef, useState } from "react";
 import { BrainCircuit, Upload, Camera as CameraIcon } from "lucide-react";
 import { ChatMessage } from "../components/ChatMessage";
@@ -7,6 +6,7 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { useToast } from "../components/Toast";
 import { saveSession } from "../utils/sessionManager";
 import { apiFetch } from "../utils/api";
+import { useSession } from "../contexts/SessionContext";
 
 type Lang = "en" | "fr" | "ar";
 
@@ -22,13 +22,13 @@ export function ScanLesson(): JSX.Element {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [showSaveButton, setShowSaveButton] = useState(false);
-  const { setSession } = useSession();
 
   // Language
   const { language: uiLang } = useLanguage();
   const [explainLang, setExplainLang] = useState<Lang>(uiLang as Lang);
 
   const { showToast, ToastContainer } = useToast();
+  const { setSession } = useSession();
 
   // Hidden inputs for camera (capture) and upload (no capture)
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -37,10 +37,10 @@ export function ScanLesson(): JSX.Element {
   // Map to Tesseract traineddata
   const tesseractLang = explainLang === "fr" ? "fra" : explainLang === "ar" ? "ara" : "eng";
 
-  // ===== OCR: via file input (shared handler) =====
+  // ===== OCR: via file input (shared handler for camera+upload) =====
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    // reset the input so selecting the same file again still triggers change
+    // reset input so selecting the same file again triggers change
     e.currentTarget.value = "";
     if (!file) return;
 
@@ -108,6 +108,7 @@ export function ScanLesson(): JSX.Element {
       setMessages([{ role: "model", content: data.result }]);
       localStorage.setItem("lastLessonText", lessonText);
       localStorage.setItem("lastLessonLang", explainLang);
+      setSession({ lessonText, summary: data.result, language: explainLang }); // save current session memory
       setShowSaveButton(true);
       showToast(
         explainLang === "fr" ? "Leçon analysée." : explainLang === "ar" ? "تم تحليل الدرس." : "Lesson analyzed.",
@@ -225,23 +226,23 @@ export function ScanLesson(): JSX.Element {
 
         {/* Actions */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Camera: opens camera on phones via capture */}
           <button
             onClick={() => cameraInputRef.current?.click()}
             disabled={loadingOCR}
             className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded disabled:opacity-60"
           >
             <CameraIcon className="w-5 h-5" />
-            {/* French labels updated */}
             {uiLang === "fr" ? "Caméra" : uiLang === "ar" ? "الكاميرا" : "Take Photo"}
           </button>
 
+          {/* Upload: opens gallery/file picker */}
           <button
             onClick={() => uploadInputRef.current?.click()}
             disabled={loadingOCR}
             className="inline-flex items-center gap-2 bg-slate-200 dark:bg-slate-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded hover:bg-slate-300 dark:hover:bg-slate-600"
           >
             <Upload className="w-5 h-5" />
-            {/* French labels updated */}
             {uiLang === "fr" ? "Télécharger" : uiLang === "ar" ? "تحميل" : "Upload"}
           </button>
         </div>
