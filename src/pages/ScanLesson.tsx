@@ -1,3 +1,4 @@
+import { useSession } from "../contexts/SessionContext";
 import React, { useRef, useState } from "react";
 import { BrainCircuit, Upload, Camera as CameraIcon } from "lucide-react";
 import { ChatMessage } from "../components/ChatMessage";
@@ -21,6 +22,7 @@ export function ScanLesson(): JSX.Element {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [showSaveButton, setShowSaveButton] = useState(false);
+  const { setSession } = useSession();
 
   // Language
   const { language: uiLang } = useLanguage();
