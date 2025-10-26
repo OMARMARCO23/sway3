@@ -30,43 +30,99 @@ export function ScanLesson(): JSX.Element {
   const { showToast, ToastContainer } = useToast();
   const { setSession } = useSession();
 
-  // Hidden inputs for camera (capture) and upload (no capture)
+  // Hidden inputs (camera via capture + gallery upload)
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
-  // Map to Tesseract traineddata
+  // Tesseract language
   const tesseractLang = explainLang === "fr" ? "fra" : explainLang === "ar" ? "ara" : "eng";
 
-  // ===== OCR: via file input (shared handler for camera+upload) =====
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // reset input so selecting the same file again triggers change
-    e.currentTarget.value = "";
-    if (!file) return;
+  // Utils
+  async function toBase64(fileOrBlob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(((r.result as string) || "").split(",")[1] || "");
+      r.onerror = reject;
+      r.readAsDataURL(fileOrBlob);
+    });
+  }
 
+  const tryCloudOCR = async (blobOrFile: Blob): Promise<string> => {
+    try {
+      const b64 = await toBase64(blobOrFile);
+      const hints = explainLang === "fr" ? ["fr"] : explainLang === "ar" ? ["ar"] : ["en"];
+      const res = await apiFetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: b64, languageHints: hints }),
+      });
+      const raw = await res.text();
+      let data: any;
+      try { data = JSON.parse(raw); } catch { return ""; }
+      return (data?.text || "").trim();
+    } catch {
+      return "";
+    }
+  };
+
+  // Shared OCR handler for both camera+upload inputs
+  const runOcrWithFallback = async (fileOrBlob: Blob) => {
+    // @ts-ignore — Tesseract via CDN in index.html
+    const Tesseract = (window as any).Tesseract;
+    if (!Tesseract) throw new Error("Tesseract not loaded (CDN missing)");
+
+    // Tesseract with better defaults
+    const result = await Tesseract.recognize(fileOrBlob, tesseractLang, {
+      // Improve layout handling and clarity
+      tessedit_pageseg_mode: 6, // Assume a block of text
+      user_defined_dpi: 300,
+    });
+
+    let text = (result?.data?.text || "").trim();
+    const conf = result?.data?.confidence ?? 0;
+
+    // Quality gate: if too short or low confidence, try Cloud OCR
+    if (!text || text.length < 120 || conf < 60) {
+      const cloud = await tryCloudOCR(fileOrBlob);
+      if (cloud && cloud.length >= 120) {
+        text = cloud.trim();
+      } else {
+        throw new Error("Text unclear—please retake with better lighting or crop closer.");
+      }
+    }
+
+    return text;
+  };
+
+  const handleImageInput = async (file: File) => {
     try {
       setLoadingOCR(true);
-      // @ts-ignore — Tesseract via CDN in index.html
-      const Tesseract = (window as any).Tesseract;
-      if (!Tesseract) throw new Error("Tesseract not loaded (CDN missing)");
-
-      const result = await Tesseract.recognize(file, tesseractLang);
-      const text = result?.data?.text ?? "";
+      const text = await runOcrWithFallback(file);
       setLessonText(text);
       showToast(
         explainLang === "fr" ? "Texte OCR extrait !" : explainLang === "ar" ? "تم استخراج النص!" : "OCR text extracted!",
         "success"
       );
-    } catch (err) {
+    } catch (err: any) {
       console.error("OCR error:", err);
       showToast(
-        explainLang === "fr" ? "Échec OCR." : explainLang === "ar" ? "فشل OCR." : "OCR failed.",
+        err?.message ||
+          (explainLang === "fr"
+            ? "Échec OCR. Réessayez (éclairage / cadrage)."
+            : explainLang === "ar"
+            ? "فشل OCR. أعد المحاولة (إضاءة/إطار)."
+            : "OCR failed. Try again with better lighting/cropping."),
         "error"
       );
     } finally {
       setLoadingOCR(false);
     }
   };
+
+  // ===== Camera (capture) =====
+  const onClickCamera = () => cameraInputRef.current?.click();
+  // ===== Gallery upload =====
+  const onClickUpload = () => uploadInputRef.current?.click();
 
   // ===== Analyze (AI summary) =====
   const handleAnalyze = async () => {
@@ -87,11 +143,7 @@ export function ScanLesson(): JSX.Element {
 
       const raw = await res.text();
       let data: any;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        throw new Error("Server returned non-JSON: " + raw.slice(0, 250));
-      }
+      try { data = JSON.parse(raw); } catch { throw new Error("Server returned non-JSON: " + raw.slice(0, 250)); }
 
       if (!res.ok) {
         const busy = res.status === 503 || /busy/i.test(data?.error || "");
@@ -108,7 +160,7 @@ export function ScanLesson(): JSX.Element {
       setMessages([{ role: "model", content: data.result }]);
       localStorage.setItem("lastLessonText", lessonText);
       localStorage.setItem("lastLessonLang", explainLang);
-      setSession({ lessonText, summary: data.result, language: explainLang }); // save current session memory
+      setSession({ lessonText, summary: data.result, language: explainLang });
       setShowSaveButton(true);
       showToast(
         explainLang === "fr" ? "Leçon analysée." : explainLang === "ar" ? "تم تحليل الدرس." : "Lesson analyzed.",
@@ -140,11 +192,7 @@ export function ScanLesson(): JSX.Element {
 
       const raw = await res.text();
       let data: any;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        throw new Error("Server returned non-JSON: " + raw.slice(0, 250));
-      }
+      try { data = JSON.parse(raw); } catch { throw new Error("Server returned non-JSON: " + raw.slice(0, 250)); }
 
       if (!res.ok) {
         const busy = res.status === 503 || /busy/i.test(data?.error || "");
@@ -206,7 +254,6 @@ export function ScanLesson(): JSX.Element {
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
             {uiLang === "fr" ? "Scanner / Coller la leçon" : uiLang === "ar" ? "امسح أو الصق الدرس" : "Scan or Paste Your Lesson"}
           </h1>
-
           {/* Per-lesson explanation language */}
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-800 dark:text-gray-200">
@@ -226,7 +273,7 @@ export function ScanLesson(): JSX.Element {
 
         {/* Actions */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Camera: opens camera on phones via capture */}
+          {/* Camera (via capture) */}
           <button
             onClick={() => cameraInputRef.current?.click()}
             disabled={loadingOCR}
@@ -236,7 +283,7 @@ export function ScanLesson(): JSX.Element {
             {uiLang === "fr" ? "Caméra" : uiLang === "ar" ? "الكاميرا" : "Take Photo"}
           </button>
 
-          {/* Upload: opens gallery/file picker */}
+          {/* Upload (gallery/file) */}
           <button
             onClick={() => uploadInputRef.current?.click()}
             disabled={loadingOCR}
@@ -253,14 +300,14 @@ export function ScanLesson(): JSX.Element {
           type="file"
           accept="image/*"
           capture="environment"
-          onChange={handleImageUpload}
+          onChange={(e) => e.target.files?.[0] && handleImageInput(e.target.files[0])}
           className="hidden"
         />
         <input
           ref={uploadInputRef}
           type="file"
           accept="image/*"
-          onChange={handleImageUpload}
+          onChange={(e) => e.target.files?.[0] && handleImageInput(e.target.files[0])}
           className="hidden"
         />
 
@@ -294,7 +341,7 @@ export function ScanLesson(): JSX.Element {
   // After summary
   return (
     <div className="max-w-5xl mx-auto space-y-5">
-      {/* Header controls */}
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
@@ -336,14 +383,13 @@ export function ScanLesson(): JSX.Element {
           <h3 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">
             {uiLang === "fr" ? "Explication IA" : uiLang === "ar" ? "الشرح بالذكاء الاصطناعي" : "AI Explanation"}
           </h3>
-          {/* Big, clean explanation */}
           <div className="max-w-[70ch] text-lg md:text-xl leading-8 text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
             {summary}
           </div>
         </div>
       </div>
 
-      {/* Save to History — prominent */}
+      {/* Save to History */}
       {showSaveButton && (
         <div className="flex justify-end">
           <button
