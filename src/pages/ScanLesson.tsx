@@ -295,109 +295,161 @@ export function ScanLesson(): JSX.Element {
     }
   };
 
-  // ===== UI =====
-  if (!summary) {
-    return (
-      <div className="max-w-3xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-            {uiLang === "fr" ? "Scanner / Coller la leçon" : uiLang === "ar" ? "امسح أو الصق الدرس" : "Scan or Paste Your Lesson"}
-          </h1>
+ // ===== UI =====
+if (!summary) {
+  return (
+    <div className="mx-auto w-full max-w-lg sm:max-w-2xl p-5 sm:p-8 rounded-2xl 
+                    bg-gradient-to-br from-indigo-100 via-white to-purple-100 
+                    dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 
+                    shadow-xl space-y-5 transition-all">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h1 className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-600 
+                       bg-clip-text text-transparent text-center sm:text-left">
+          {uiLang === "fr"
+            ? "Scanner ou coller votre leçon"
+            : uiLang === "ar"
+            ? "امسح أو الصق الدرس"
+            : "Scan or Paste Your Lesson"}
+        </h1>
 
-          {/* Per-lesson explanation language */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-800 dark:text-gray-200">
-              {uiLang === "fr" ? "Expliquer en" : uiLang === "ar" ? "الشرح بـ" : "Explain in"}
-            </label>
-            <select
-              value={explainLang}
-              onChange={(e) => setExplainLang(e.target.value as Lang)}
-              className="bg-gray-200 dark:bg-gray-700 rounded px-2 py-1 text-sm text-gray-800 dark:text-white"
-            >
-              <option value="en">English</option>
-              <option value="fr">Français</option>
-              <option value="ar">العربية</option>
-            </select>
-          </div>
+        {/* Language select */}
+        <div className="flex items-center gap-2 justify-center sm:justify-end">
+          <label className="text-sm text-gray-800 dark:text-gray-200">
+            {uiLang === "fr"
+              ? "Expliquer en"
+              : uiLang === "ar"
+              ? "الشرح بـ"
+              : "Explain in"}
+          </label>
+          <select
+            value={explainLang}
+            onChange={(e) => setExplainLang(e.target.value as Lang)}
+            className="bg-gray-200 dark:bg-gray-700 rounded-md px-2 py-1 text-sm 
+                       text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="en">English</option>
+            <option value="fr">Français</option>
+            <option value="ar">العربية</option>
+          </select>
         </div>
+      </div>
 
-        {/* Actions */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Camera-like (capture) */}
-          <button
-            onClick={() => cameraInputRef.current?.click()}
-            disabled={loadingOCR}
-            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded disabled:opacity-60"
-          >
-            <CameraIcon className="w-5 h-5" />
-            {uiLang === "fr" ? "Caméra" : uiLang === "ar" ? "الكاميرا" : "Take Photo"}
-          </button>
-
-          {/* Upload (gallery/file) */}
-          <button
-            onClick={() => uploadInputRef.current?.click()}
-            disabled={loadingOCR}
-            className="inline-flex items-center gap-2 bg-slate-200 dark:bg-slate-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded hover:bg-slate-300 dark:hover:bg-slate-600"
-          >
-            <Upload className="w-5 h-5" />
-            {uiLang === "fr" ? "Télécharger" : uiLang === "ar" ? "تحميل" : "Upload"}
-          </button>
-
-          {/* Add another page */}
-          <button
-            onClick={onAddAnotherPage}
-            disabled={loadingOCR}
-            className="inline-flex items-center gap-2 bg-slate-200 dark:bg-slate-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded hover:bg-slate-300 dark:hover:bg-slate-600"
-            title={uiLang === "fr" ? "Ajouter une autre page" : uiLang === "ar" ? "إضافة صفحة أخرى" : "Add another page"}
-          >
-            <PlusCircle className="w-5 h-5" />
-            {uiLang === "fr" ? "Ajouter une page" : uiLang === "ar" ? "أضف صفحة" : "Add page"}
-          </button>
-        </div>
-
-        {/* Hidden inputs */}
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={(e) => e.target.files?.[0] && handleImageInput(e.target.files[0], true /* append */)}
-          className="hidden"
-        />
-        <input
-          ref={uploadInputRef}
-          type="file"
-          accept="image/*"
-          onChange={(e) => e.target.files?.[0] && handleImageInput(e.target.files[0])}
-          className="hidden"
-        />
-
-        {loadingOCR && (
-          <p className="text-sm text-blue-500">
-            {uiLang === "fr" ? "Extraction du texte…" : uiLang === "ar" ? "جار استخراج النص..." : "Extracting text…"}
-          </p>
-        )}
-
-        <textarea
-          className="w-full h-44 p-3 border rounded-lg text-gray-800 dark:text-gray-200 dark:bg-gray-900"
-          placeholder={uiLang === "fr" ? "Ou collez le texte ici…" : uiLang === "ar" ? "أو الصق نص الدرس هنا…" : "Or paste your lesson text here…"}
-          value={lessonText}
-          onChange={(e) => setLessonText(e.target.value)}
-        />
-
+      {/* Action buttons */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <button
-          onClick={handleAnalyze}
-          disabled={!lessonText || loadingSummary}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg inline-flex items-center justify-center gap-2 disabled:opacity-60"
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={loadingOCR}
+          className="flex items-center justify-center gap-2 py-3 rounded-lg text-white 
+                     bg-gradient-to-r from-indigo-500 to-purple-600 
+                     hover:from-indigo-600 hover:to-purple-700 
+                     font-medium shadow disabled:opacity-60 transition-all"
         >
-          {loadingSummary ? (uiLang === "fr" ? "Analyse…" : uiLang === "ar" ? "جار التحليل…" : "Analyzing…") : (uiLang === "fr" ? "Analyser la leçon" : uiLang === "ar" ? "حلّل النص" : "Analyze Lesson")}
-          <BrainCircuit className="w-5 h-5" />
+          <CameraIcon className="w-5 h-5" />
+          {uiLang === "fr" ? "Caméra" : uiLang === "ar" ? "الكاميرا" : "Take Photo"}
         </button>
 
-        <ToastContainer />
+        <button
+          onClick={() => uploadInputRef.current?.click()}
+          disabled={loadingOCR}
+          className="flex items-center justify-center gap-2 py-3 rounded-lg 
+                     bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
+                     border border-gray-200 dark:border-gray-700 
+                     hover:bg-gray-50 dark:hover:bg-gray-700 
+                     font-medium shadow-sm disabled:opacity-60 transition-all"
+        >
+          <Upload className="w-5 h-5" />
+          {uiLang === "fr" ? "Télécharger" : uiLang === "ar" ? "تحميل" : "Upload"}
+        </button>
+
+        <button
+          onClick={onAddAnotherPage}
+          disabled={loadingOCR}
+          title={uiLang === "fr" ? "Ajouter une autre page" : uiLang === "ar" ? "إضافة صفحة أخرى" : "Add another page"}
+          className="flex items-center justify-center gap-2 py-3 rounded-lg 
+                     bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 
+                     hover:bg-gray-200 dark:hover:bg-gray-600 
+                     font-medium shadow-sm disabled:opacity-60 transition-all"
+        >
+          <PlusCircle className="w-5 h-5" />
+          {uiLang === "fr" ? "Ajouter une page" : uiLang === "ar" ? "أضف صفحة" : "Add page"}
+        </button>
       </div>
-    );
-  }
+
+      {/* Hidden inputs */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={(e) =>
+          e.target.files?.[0] && handleImageInput(e.target.files[0], true /* append */)
+        }
+        className="hidden"
+      />
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        onChange={(e) =>
+          e.target.files?.[0] && handleImageInput(e.target.files[0])
+        }
+        className="hidden"
+      />
+
+      {loadingOCR && (
+        <p className="text-sm text-indigo-600 dark:text-indigo-400 text-center">
+          {uiLang === "fr"
+            ? "Extraction du texte…"
+            : uiLang === "ar"
+            ? "جار استخراج النص..."
+            : "Extracting text…"}
+        </p>
+      )}
+
+      {/* Text area */}
+      <textarea
+        className="w-full h-48 sm:h-56 p-4 border-2 border-indigo-200 focus:border-indigo-400 
+                   rounded-xl text-gray-800 dark:text-gray-100 dark:bg-gray-900 
+                   focus:ring-2 focus:ring-indigo-400 transition-all resize-none"
+        placeholder={
+          uiLang === "fr"
+            ? "Ou collez le texte ici…"
+            : uiLang === "ar"
+            ? "أو الصق نص الدرس هنا…"
+            : "Or paste your lesson text here…"
+        }
+        value={lessonText}
+        onChange={(e) => setLessonText(e.target.value)}
+      />
+
+      {/* Analyze button */}
+      <button
+        onClick={handleAnalyze}
+        disabled={!lessonText || loadingSummary}
+        className="w-full py-3 rounded-lg font-semibold text-white 
+                   bg-gradient-to-r from-indigo-500 to-purple-600 
+                   hover:from-indigo-600 hover:to-purple-700 
+                   flex items-center justify-center gap-2 shadow-lg disabled:opacity-60 transition-all"
+      >
+        {loadingSummary
+          ? uiLang === "fr"
+            ? "Analyse…"
+            : uiLang === "ar"
+            ? "جار التحليل…"
+            : "Analyzing…"
+          : uiLang === "fr"
+          ? "Analyser la leçon"
+          : uiLang === "ar"
+          ? "حلّل النص"
+          : "Analyze Lesson"}
+        <BrainCircuit className="w-5 h-5" />
+      </button>
+
+      <ToastContainer />
+    </div>
+  );
+}
 
   // After summary
   return (
